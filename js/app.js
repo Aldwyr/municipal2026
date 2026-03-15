@@ -499,6 +499,7 @@ function setupAutoRefresh() {
 // ===== INIT =====
 document.addEventListener('DOMContentLoaded', function () {
   initMap();
+  initChoropleth();
   loadCities();
   setupSearch();
   setupFilters();
