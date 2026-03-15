@@ -52,9 +52,22 @@ function getLeadScore(city, family) {
 function cityMatchesLegendParty(city, partyKey) {
   if (!city.candidats || !city.candidats.length) return false;
   const aliases = LEGEND_PARTY_MAP[partyKey] || [];
+  // Check if the LEADING candidate (first with a score) belongs to this party
   const lead = city.candidats.find(c => c.score !== null);
   if (!lead) return false;
-  return aliases.some(a => lead.parti.includes(a) || a.includes(lead.parti));
+  // Match if any alias is a substring of the candidate's parti or vice versa
+  // Also match by bord for broader categories (RN = all "Extrême droite")
+  const bordMatch = {
+    RN: ['Extrême droite'], UDR: ['Droite souverainiste'],
+    PS: ['Gauche'], LFI: ['Extrême gauche'], PCF: ['Gauche'],
+    EELV: ['Centre-gauche', 'Gauche'], LR: ['Droite', 'Droite-Centre'],
+    RE: ['Centre', 'Centre-droit'], REC: ['Extrême droite'],
+    DIV: ['Divers', 'Divers droite', 'Divers gauche']
+  };
+  const partiMatch = aliases.some(a => lead.parti === a || lead.parti.includes(a) || a.includes(lead.parti));
+  const bords = bordMatch[partyKey] || [];
+  const bMatch = bords.includes(lead.bord);
+  return partiMatch || bMatch;
 }
 
 // ===== FETCH CITIES =====
@@ -65,6 +78,21 @@ async function fetchCities(filter) {
     const resp = await fetch('https://geo.api.gouv.fr/communes?fields=nom,code,departement,population,centre&boost=population&limit=80', { signal: AbortSignal.timeout(6000) });
     const apiCities = await resp.json();
     CITIES = apiCities.map(ac => buildCity(ac, RESULTS_DB[ac.code] || null));
+
+    // Always inject ALL RESULTS_DB cities not already fetched from API
+    const apiCodes = new Set(apiCities.map(ac => ac.code));
+    Object.entries(RESULTS_DB).forEach(([code, results]) => {
+      if (!apiCodes.has(code) && GEO_FALLBACK[code]) {
+        const geo = GEO_FALLBACK[code];
+        const fakeApi = {
+          code, nom: geo.nom, population: geo.pop,
+          centre: { coordinates: [geo.lng, geo.lat] },
+          departement: { nom: geo.dept }
+        };
+        CITIES.push(buildCity(fakeApi, results));
+      }
+    });
+
     displayFiltered(filter);
   } catch (e) {
     console.log('API indisponible, fallback:', e);
@@ -105,8 +133,14 @@ function applyFilter(cities, filter) {
       list = list.filter(c => c.candidats && c.candidats.length && getLeadScore(c, 'rn') > 0);
       list.sort((a, b) => getLeadScore(b, 'rn') - getLeadScore(a, 'rn'));
       break;
-    default:
-      list.sort((a, b) => (b.population || 0) - (a.population || 0));
+    default: // 'all' — prioritize cities with results, then by population
+      list.sort((a, b) => {
+        const aHas = a.candidats && a.candidats.some(c => c.score !== null);
+        const bHas = b.candidats && b.candidats.some(c => c.score !== null);
+        if (aHas && !bHas) return -1;
+        if (!aHas && bHas) return 1;
+        return (b.population || 0) - (a.population || 0);
+      });
       break;
   }
   return list;
