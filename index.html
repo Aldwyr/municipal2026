@@ -42,9 +42,7 @@
       text-transform: uppercase; letter-spacing: 1px;
       animation: pulse 2s infinite;
     }
-    @keyframes pulse {
-      0%, 100% { opacity: 1; } 50% { opacity: 0.6; }
-    }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.6} }
     .auto-refresh-info {
       font-size: 0.75rem; color: var(--text2);
       display: flex; align-items: center; gap: 0.4rem;
@@ -55,9 +53,7 @@
     }
 
     /* SEARCH */
-    .search-container {
-      position: relative; max-width: 400px; width: 100%;
-    }
+    .search-container { position: relative; max-width: 400px; width: 100%; }
     .search-container input {
       width: 100%; padding: 0.6rem 1rem 0.6rem 2.5rem;
       background: var(--surface2); border: 1px solid var(--border);
@@ -87,11 +83,7 @@
     .search-result-item .city-dept { color: var(--text2); font-size: 0.78rem; }
 
     /* MAP */
-    #map-section { padding: 0; }
-    #map {
-      width: 100%; height: 65vh; min-height: 400px;
-      border-bottom: 1px solid var(--border);
-    }
+    #map { width: 100%; height: 55vh; min-height: 350px; border-bottom: 1px solid var(--border); }
     .leaflet-popup-content-wrapper {
       background: var(--surface) !important; color: var(--text) !important;
       border-radius: 12px !important; border: 1px solid var(--border) !important;
@@ -99,27 +91,22 @@
     .leaflet-popup-tip { background: var(--surface) !important; }
     .leaflet-popup-content { font-family: inherit !important; font-size: 0.85rem !important; margin: 12px !important; }
 
-    /* MAIN */
     .container { max-width: 1400px; margin: 0 auto; padding: 1.5rem 1rem; }
-
-    /* STATS */
-    .stats-row {
-      display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-      gap: 0.75rem; margin-bottom: 2rem;
-    }
-    .stat-box {
-      background: var(--surface); border: 1px solid var(--border);
-      border-radius: 12px; padding: 1rem; text-align: center;
-    }
-    .stat-box .val { font-size: 1.8rem; font-weight: 800; color: var(--accent); }
-    .stat-box .lbl { font-size: 0.75rem; color: var(--text2); margin-top: 0.2rem; }
 
     /* SECTION HEADERS */
     .section-hdr {
       font-size: 1.2rem; font-weight: 700; margin: 2rem 0 1rem;
       padding-bottom: 0.5rem; border-bottom: 2px solid var(--border);
-      display: flex; align-items: center; gap: 0.5rem;
     }
+
+    /* NEXT EVENT */
+    .next-event {
+      background: linear-gradient(135deg, #1E293B, #334155);
+      border: 1px solid var(--border); border-radius: 12px;
+      padding: 1rem 1.25rem; margin-bottom: 1.5rem;
+      font-size: 0.85rem; display: flex; align-items: center; gap: 0.75rem;
+    }
+    .next-event .icon { font-size: 1.5rem; }
 
     /* LEGEND */
     .legend-bar {
@@ -132,56 +119,160 @@
     }
     .legend-chip .dot { width: 10px; height: 10px; border-radius: 50%; }
 
-    /* CITY CARDS */
-    .cities-grid {
-      display: grid; grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
-      gap: 1rem; margin-bottom: 2rem;
-    }
-    .city-card {
+    /* FILTER TABS */
+    .filter-tabs { display: flex; gap: 0.4rem; flex-wrap: wrap; margin-bottom: 1rem; }
+    .filter-tab {
+      padding: 0.3rem 0.75rem; border-radius: 999px; font-size: 0.75rem;
       background: var(--surface); border: 1px solid var(--border);
-      border-radius: 14px; overflow: hidden; transition: transform 0.2s, box-shadow 0.2s;
+      cursor: pointer; color: var(--text2); transition: all 0.2s; font-weight: 500;
     }
-    .city-card:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.3); }
-    .city-card-top {
-      padding: 1rem 1.25rem 0.75rem; border-bottom: 1px solid var(--border);
-      display: flex; justify-content: space-between; align-items: flex-start;
+    .filter-tab.active, .filter-tab:hover {
+      background: var(--accent); color: var(--bg); border-color: var(--accent);
     }
-    .city-card-top .name { font-size: 1.15rem; font-weight: 800; }
-    .city-card-top .meta { font-size: 0.75rem; color: var(--text2); }
-    .city-card-top .mayor { font-size: 0.75rem; color: var(--text2); margin-top: 0.15rem; }
-    .status-badge {
-      padding: 0.2rem 0.55rem; border-radius: 999px;
-      font-size: 0.68rem; font-weight: 700; text-transform: uppercase;
+
+    /* ===== COMPACT CITY TILES ===== */
+    .cities-grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      gap: 0.75rem; margin-bottom: 2rem;
+    }
+    .city-tile {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 12px; padding: 0.85rem 1rem; cursor: pointer;
+      transition: all 0.2s; position: relative; overflow: hidden;
+    }
+    .city-tile:hover { border-color: var(--accent); transform: translateY(-1px);
+      box-shadow: 0 4px 16px rgba(0,0,0,0.3); }
+    .city-tile .bord-line {
+      position: absolute; top: 0; left: 0; right: 0; height: 3px;
+    }
+    .city-tile-header {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 0.4rem;
+    }
+    .city-tile-header .name { font-size: 1rem; font-weight: 700; }
+    .city-tile-header .status-badge {
+      padding: 0.15rem 0.45rem; border-radius: 999px;
+      font-size: 0.62rem; font-weight: 700; text-transform: uppercase;
       letter-spacing: 0.5px; white-space: nowrap;
     }
     .status-2t { background: #F59E0B33; color: #F59E0B; border: 1px solid #F59E0B55; }
     .status-elu { background: #22C55E33; color: #22C55E; border: 1px solid #22C55E55; }
-    .city-card-body { padding: 0.75rem 1.25rem; }
-    .cand-row {
+    .city-tile-preview {
+      display: flex; flex-wrap: wrap; gap: 0.25rem 0.6rem;
+      font-size: 0.78rem; color: var(--text2);
+    }
+    .city-tile-preview .cand-chip {
+      display: inline-flex; align-items: center; gap: 0.25rem;
+    }
+    .city-tile-preview .cand-chip .cdot {
+      width: 8px; height: 8px; border-radius: 50%; display: inline-block;
+    }
+    .city-tile-preview .cand-chip .cscore { font-weight: 700; }
+    .city-tile-stacked-bar {
+      display: flex; height: 6px; border-radius: 999px; overflow: hidden;
+      margin-top: 0.5rem; background: var(--surface2);
+    }
+    .city-tile-stacked-bar .seg { height: 100%; transition: width 0.4s ease; }
+
+    /* ===== MODAL DETAIL ===== */
+    .modal-overlay {
+      position: fixed; inset: 0; z-index: 2000;
+      background: rgba(0,0,0,0.7); backdrop-filter: blur(4px);
+      display: none; align-items: center; justify-content: center;
+      padding: 1rem;
+    }
+    .modal-overlay.active { display: flex; }
+    .modal-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 16px; max-width: 650px; width: 100%;
+      max-height: 85vh; overflow-y: auto; position: relative;
+    }
+    .modal-close {
+      position: sticky; top: 0; right: 0; z-index: 10;
+      display: flex; justify-content: flex-end; padding: 0.75rem 1rem 0;
+    }
+    .modal-close button {
+      background: var(--surface2); border: 1px solid var(--border);
+      color: var(--text); width: 32px; height: 32px; border-radius: 50%;
+      cursor: pointer; font-size: 1.1rem; display: flex; align-items: center;
+      justify-content: center; transition: background 0.2s;
+    }
+    .modal-close button:hover { background: #EF4444; border-color: #EF4444; }
+    .modal-body { padding: 0 1.5rem 1.5rem; }
+    .modal-city-name { font-size: 1.4rem; font-weight: 800; margin-bottom: 0.15rem; }
+    .modal-city-meta { font-size: 0.8rem; color: var(--text2); margin-bottom: 0.25rem; }
+    .modal-city-mayor { font-size: 0.78rem; color: var(--text2); margin-bottom: 1rem; }
+    .modal-section-title {
+      font-size: 0.85rem; font-weight: 700; color: var(--accent);
+      margin: 1.25rem 0 0.5rem; text-transform: uppercase; letter-spacing: 0.5px;
+    }
+
+    /* Candidate rows in modal */
+    .modal-cand-row {
       display: grid; grid-template-columns: 1fr 55px;
       align-items: center; gap: 0.5rem;
       padding: 0.5rem 0; border-bottom: 1px solid rgba(71,85,105,0.3);
     }
-    .cand-row:last-child { border-bottom: none; }
-    .cand-info .cand-name { font-weight: 600; font-size: 0.85rem; }
-    .cand-info .cand-parti { font-size: 0.72rem; }
-    .cand-bar-track {
+    .modal-cand-row:last-child { border-bottom: none; }
+    .modal-cand-info .cand-name { font-weight: 600; font-size: 0.85rem; }
+    .modal-cand-info .cand-parti { font-size: 0.72rem; }
+    .modal-cand-bar-track {
       width: 100%; height: 5px; background: var(--surface2);
       border-radius: 999px; margin-top: 3px; overflow: hidden;
     }
-    .cand-bar-fill { height: 100%; border-radius: 999px; transition: width 0.6s ease; }
-    .cand-score { font-size: 1rem; font-weight: 800; text-align: right; }
-    .city-card-note {
-      padding: 0.5rem 1.25rem 0.75rem; font-size: 0.75rem; color: var(--text2);
+    .modal-cand-bar-fill { height: 100%; border-radius: 999px; transition: width 0.6s ease; }
+    .modal-cand-score { font-size: 1rem; font-weight: 800; text-align: right; }
+
+    /* Participation bar in modal */
+    .modal-part {
+      display: flex; align-items: center; gap: 0.5rem; margin-top: 0.25rem;
     }
-    .city-card-source {
-      padding: 0 1.25rem 0.75rem; font-size: 0.68rem;
-      color: var(--text2); border-top: 1px solid rgba(71,85,105,0.2);
-      padding-top: 0.5rem;
+    .modal-part-track {
+      flex: 1; height: 10px; background: var(--surface2);
+      border-radius: 999px; overflow: hidden;
     }
-    .city-card-source a { color: var(--accent); font-size: 0.68rem; }
-    .bord-indicator {
-      width: 100%; height: 3px;
+    .modal-part-fill {
+      height: 100%; border-radius: 999px;
+      background: linear-gradient(90deg, #38BDF8, #818CF8);
+    }
+    .modal-part-pct { font-size: 0.85rem; font-weight: 700; color: var(--accent); min-width: 50px; text-align: right; }
+
+    /* Chart area in modal */
+    .modal-chart-area {
+      background: var(--surface2); border-radius: 10px;
+      padding: 1rem; margin-top: 0.5rem; min-height: 120px;
+      display: flex; align-items: flex-end; gap: 2px;
+    }
+    .chart-bar-group {
+      flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px;
+    }
+    .chart-bar {
+      width: 100%; max-width: 40px; border-radius: 4px 4px 0 0;
+      transition: height 0.4s ease; min-height: 2px;
+    }
+    .chart-bar-label { font-size: 0.6rem; color: var(--text2); text-align: center; writing-mode: vertical-rl; transform: rotate(180deg); max-height: 60px; overflow: hidden; }
+    .chart-bar-value { font-size: 0.65rem; font-weight: 700; margin-bottom: 2px; }
+
+    /* Sources in modal */
+    .modal-sources {
+      margin-top: 1rem; padding-top: 0.75rem;
+      border-top: 1px solid var(--border);
+    }
+    .modal-sources a {
+      font-size: 0.72rem; display: inline-block; margin-right: 0.75rem; margin-bottom: 0.25rem;
+    }
+
+    /* Note in modal */
+    .modal-note {
+      background: var(--surface2); border-radius: 8px;
+      padding: 0.6rem 0.75rem; font-size: 0.78rem; color: var(--text2); margin-top: 0.75rem;
+    }
+
+    /* 2nd tour placeholder */
+    .modal-2t-placeholder {
+      background: var(--surface2); border: 1px dashed var(--border);
+      border-radius: 10px; padding: 1rem; text-align: center;
+      font-size: 0.82rem; color: var(--text2); margin-top: 0.5rem;
     }
 
     /* ALLIANCES */
@@ -202,12 +293,31 @@
       align-items: center; gap: 0.75rem; margin-bottom: 0.5rem; font-size: 0.85rem;
     }
     .sondage-label { font-weight: 600; font-size: 0.82rem; }
-    .sondage-track {
-      height: 8px; background: var(--surface2);
-      border-radius: 999px; overflow: hidden;
-    }
+    .sondage-track { height: 8px; background: var(--surface2); border-radius: 999px; overflow: hidden; }
     .sondage-fill { height: 100%; border-radius: 999px; }
     .sondage-pct { font-weight: 800; text-align: right; }
+
+    /* STATS (bottom) */
+    .stats-row {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 0.75rem; margin-bottom: 2rem;
+    }
+    .stat-box {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 12px; padding: 1rem; text-align: center;
+    }
+    .stat-box .val { font-size: 1.8rem; font-weight: 800; color: var(--accent); }
+    .stat-box .lbl { font-size: 0.75rem; color: var(--text2); margin-top: 0.2rem; }
+
+    /* PARTICIPATION */
+    .part-row {
+      display: grid; grid-template-columns: 140px 1fr 60px;
+      align-items: center; gap: 0.5rem; margin-bottom: 0.4rem;
+    }
+    .part-city { font-size: 0.82rem; font-weight: 600; }
+    .part-track { height: 10px; background: var(--surface2); border-radius: 999px; overflow: hidden; }
+    .part-fill { height: 100%; border-radius: 999px; background: linear-gradient(90deg, #38BDF8, #818CF8); }
+    .part-pct { font-size: 0.82rem; font-weight: 700; color: var(--accent); text-align: right; }
 
     /* FOOTER */
     footer {
@@ -216,54 +326,14 @@
     }
     footer a { color: var(--accent); }
 
-    /* PARTICIPATION */
-    .part-row {
-      display: grid; grid-template-columns: 140px 1fr 60px;
-      align-items: center; gap: 0.5rem; margin-bottom: 0.4rem;
-    }
-    .part-city { font-size: 0.82rem; font-weight: 600; }
-    .part-track {
-      height: 10px; background: var(--surface2);
-      border-radius: 999px; overflow: hidden;
-    }
-    .part-fill {
-      height: 100%; border-radius: 999px;
-      background: linear-gradient(90deg, #38BDF8, #818CF8);
-    }
-    .part-pct { font-size: 0.82rem; font-weight: 700; color: var(--accent); text-align: right; }
-
-    /* RESPONSIVE */
     @media (max-width: 768px) {
       nav { padding: 0.5rem 0.75rem; }
       nav .logo { font-size: 1rem; }
       .cities-grid { grid-template-columns: 1fr; }
       .sondage-row { grid-template-columns: 1fr; gap: 0.25rem; }
-      .sondage-label { min-width: auto; }
-      #map { height: 50vh; min-height: 300px; }
+      #map { height: 45vh; min-height: 280px; }
       .search-container { max-width: 100%; }
-    }
-
-    /* Notification banner */
-    .next-event {
-      background: linear-gradient(135deg, #1E293B, #334155);
-      border: 1px solid var(--border); border-radius: 12px;
-      padding: 1rem 1.25rem; margin-bottom: 1.5rem;
-      font-size: 0.85rem; display: flex; align-items: center; gap: 0.75rem;
-    }
-    .next-event .icon { font-size: 1.5rem; }
-
-    /* Filter tabs */
-    .filter-tabs {
-      display: flex; gap: 0.4rem; flex-wrap: wrap; margin-bottom: 1rem;
-    }
-    .filter-tab {
-      padding: 0.3rem 0.75rem; border-radius: 999px; font-size: 0.75rem;
-      background: var(--surface); border: 1px solid var(--border);
-      cursor: pointer; color: var(--text2); transition: all 0.2s;
-      font-weight: 500;
-    }
-    .filter-tab.active, .filter-tab:hover {
-      background: var(--accent); color: var(--bg); border-color: var(--accent);
+      .modal-card { max-height: 90vh; border-radius: 12px; }
     }
   </style>
 </head>
@@ -285,32 +355,78 @@
   </div>
 </nav>
 
-<div id="map-section">
-  <div id="map"></div>
+<div id="map"></div>
+
+<!-- MODAL -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal-card" id="modalCard">
+    <div class="modal-close"><button onclick="closeModal()">&times;</button></div>
+    <div class="modal-body" id="modalBody"></div>
+  </div>
 </div>
 
 <div class="container">
 
-  <!-- Stats nationales -->
-  <div class="stats-row">
-    <div class="stat-box"><div class="val">56 %</div><div class="lbl">Participation (estim.)</div></div>
-    <div class="stat-box"><div class="val">+17 pts</div><div class="lbl">vs 2020 (38,8 %)</div></div>
-    <div class="stat-box"><div class="val">48,7 M</div><div class="lbl">Inscrits</div></div>
-    <div class="stat-box"><div class="val">34 875</div><div class="lbl">Communes</div></div>
-    <div class="stat-box"><div class="val">904 042</div><div class="lbl">Candidats</div></div>
-    <div class="stat-box"><div class="val">50 478</div><div class="lbl">Listes</div></div>
-  </div>
-
-  <!-- Prochain rdv -->
+  <!-- Next event -->
   <div class="next-event">
     <div class="icon">&#128197;</div>
     <div>
       <strong>Second tour : dimanche 22 mars 2026</strong><br>
-      <span style="color:var(--text2)">Cette page se met à jour automatiquement tant que les résultats ne sont pas définitifs. Les données proviennent du Ministère de l'Intérieur et des estimations Ipsos-BVA.</span>
+      <span style="color:var(--text2)">Page auto-actualisée tant que les résultats ne sont pas définitifs. Données : Ministère de l'Intérieur &amp; estimations Ipsos-BVA.</span>
     </div>
   </div>
 
-  <!-- Participation -->
+  <!-- Legend -->
+  <div class="legend-bar">
+    <div class="legend-chip"><div class="dot" style="background:var(--ps)"></div>PS</div>
+    <div class="legend-chip"><div class="dot" style="background:var(--lfi)"></div>LFI</div>
+    <div class="legend-chip"><div class="dot" style="background:var(--pcf)"></div>PCF</div>
+    <div class="legend-chip"><div class="dot" style="background:var(--eco)"></div>EELV</div>
+    <div class="legend-chip"><div class="dot" style="background:var(--lr)"></div>LR</div>
+    <div class="legend-chip"><div class="dot" style="background:var(--re)"></div>RE/Horizons</div>
+    <div class="legend-chip"><div class="dot" style="background:var(--rn)"></div>RN</div>
+    <div class="legend-chip"><div class="dot" style="background:var(--udr)"></div>UDR</div>
+    <div class="legend-chip"><div class="dot" style="background:var(--rec)"></div>Reconquête</div>
+    <div class="legend-chip"><div class="dot" style="background:var(--div)"></div>Divers</div>
+  </div>
+
+  <!-- Filters -->
+  <h2 class="section-hdr">Résultats des principales villes</h2>
+  <div class="filter-tabs" id="filterTabs">
+    <div class="filter-tab active" data-filter="all">Toutes</div>
+    <div class="filter-tab" data-filter="2t">2e tour</div>
+    <div class="filter-tab" data-filter="elu">Élus au 1er tour</div>
+    <div class="filter-tab" data-filter="gauche">Gauche en tête</div>
+    <div class="filter-tab" data-filter="droite">Droite en tête</div>
+    <div class="filter-tab" data-filter="rn">RN en tête</div>
+  </div>
+
+  <!-- Compact city tiles -->
+  <div class="cities-grid" id="citiesGrid"></div>
+
+  <!-- Alliances -->
+  <h2 class="section-hdr">Alliances &amp; enjeux pour le 2e tour (22 mars)</h2>
+  <div class="alliances-grid">
+    <div class="alliance-card"><h4 style="color:var(--ps)">Gauche modérée (PS, PCF, EELV)</h4><p>Olivier Faure (PS) a exclu tout accord national avec LFI. La question des fusions se posera localement — notamment à Lille, Paris et Marseille.</p></div>
+    <div class="alliance-card"><h4 style="color:var(--lfi)">LFI — isolation relative</h4><p>89 % des proches LFI souhaitent une union avec le PS, mais 75 % des Français y sont opposés. LFI peut se retrouver isolée dans certaines villes.</p></div>
+    <div class="alliance-card"><h4 style="color:var(--rn)">RN / UDR — dynamique forte</h4><p>Perpignan et Hénin-Beaumont élus dès le 1er tour, bons scores à Toulon, Marseille et Nice. 78 % des proches RN favorables aux fusions avec LR.</p></div>
+    <div class="alliance-card"><h4 style="color:var(--lr)">LR / Horizons — front républicain ?</h4><p>64 % des proches LR favorables à des fusions avec RN et 69 % avec Renaissance/Horizons. Bruno Retailleau appelle à un « grand rassemblement de la droite ».</p></div>
+    <div class="alliance-card"><h4 style="color:var(--eco)">Écologistes — rôle d'arbitre</h4><p>À Lille, les écologistes arbitrent entre PS et LFI. À Strasbourg, EELV est en recul. À Bordeaux et Grenoble, l'écologie résiste.</p></div>
+    <div class="alliance-card"><h4 style="color:var(--accent)">Contexte — Test avant 2027</h4><p>Ces municipales sont un test à un an de la présidentielle 2027. La participation en hausse (+17 pts vs 2020) montre une remobilisation civique.</p></div>
+  </div>
+
+  <!-- Sondages -->
+  <h2 class="section-hdr">Sondages — Attitudes envers les fusions (2e tour)</h2>
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.25rem;margin-bottom:2rem;">
+    <div class="sondage-row"><span class="sondage-label" style="color:var(--lfi)">Proches LFI pro-union PS</span><div class="sondage-track"><div class="sondage-fill" style="width:89%;background:var(--lfi)"></div></div><span class="sondage-pct" style="color:var(--lfi)">89 %</span></div>
+    <div class="sondage-row"><span class="sondage-label" style="color:var(--rn)">Proches RN pro-fusion LR/RN</span><div class="sondage-track"><div class="sondage-fill" style="width:78%;background:var(--rn)"></div></div><span class="sondage-pct" style="color:var(--rn)">78 %</span></div>
+    <div class="sondage-row"><span class="sondage-label" style="color:var(--lr)">Proches LR pro-fusion LR/RN</span><div class="sondage-track"><div class="sondage-fill" style="width:64%;background:var(--lr)"></div></div><span class="sondage-pct" style="color:var(--lr)">64 %</span></div>
+    <div class="sondage-row"><span class="sondage-label" style="color:var(--ps)">Proches PS pro-union LFI</span><div class="sondage-track"><div class="sondage-fill" style="width:36%;background:var(--ps)"></div></div><span class="sondage-pct" style="color:var(--ps)">36 %</span></div>
+    <div class="sondage-row"><span class="sondage-label" style="color:var(--div)">Français opposés union LFI/gauche</span><div class="sondage-track"><div class="sondage-fill" style="width:75%;background:var(--div)"></div></div><span class="sondage-pct" style="color:var(--div)">75 %</span></div>
+    <div style="font-size:0.72rem;color:var(--text2);margin-top:0.75rem;">Sources : Ipsos-BVA-Cesi / France Bleu</div>
+  </div>
+
+  <!-- Participation (moved lower) -->
   <h2 class="section-hdr">Participation par ville (1er tour)</h2>
   <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.25rem;margin-bottom:2rem;">
     <div class="part-row"><span class="part-city">Lyon</span><div class="part-track"><div class="part-fill" style="width:63.9%"></div></div><span class="part-pct">63,9 %</span></div>
@@ -327,368 +443,237 @@
     <div class="part-row"><span class="part-city">Nationale (estim.)</span><div class="part-track"><div class="part-fill" style="width:56%"></div></div><span class="part-pct">56,0 %</span></div>
   </div>
 
-  <!-- Légende -->
-  <div class="legend-bar">
-    <div class="legend-chip"><div class="dot" style="background:var(--ps)"></div>PS (Gauche)</div>
-    <div class="legend-chip"><div class="dot" style="background:var(--lfi)"></div>LFI (Extrême gauche)</div>
-    <div class="legend-chip"><div class="dot" style="background:var(--pcf)"></div>PCF (Gauche)</div>
-    <div class="legend-chip"><div class="dot" style="background:var(--eco)"></div>EELV (Centre-gauche)</div>
-    <div class="legend-chip"><div class="dot" style="background:var(--lr)"></div>LR (Droite)</div>
-    <div class="legend-chip"><div class="dot" style="background:var(--re)"></div>RE / Horizons / MoDem (Centre)</div>
-    <div class="legend-chip"><div class="dot" style="background:var(--rn)"></div>RN (Extrême droite)</div>
-    <div class="legend-chip"><div class="dot" style="background:var(--udr)"></div>UDR (Droite souverainiste)</div>
-    <div class="legend-chip"><div class="dot" style="background:var(--rec)"></div>Reconquête (Extrême droite)</div>
-    <div class="legend-chip"><div class="dot" style="background:var(--div)"></div>DVG / DVD / DIV</div>
+  <!-- Stats (bottom) -->
+  <h2 class="section-hdr">Statistiques nationales</h2>
+  <div class="stats-row">
+    <div class="stat-box"><div class="val">56 %</div><div class="lbl">Participation (estim.)</div></div>
+    <div class="stat-box"><div class="val">+17 pts</div><div class="lbl">vs 2020 (38,8 %)</div></div>
+    <div class="stat-box"><div class="val">48,7 M</div><div class="lbl">Inscrits</div></div>
+    <div class="stat-box"><div class="val">34 875</div><div class="lbl">Communes</div></div>
+    <div class="stat-box"><div class="val">904 042</div><div class="lbl">Candidats</div></div>
+    <div class="stat-box"><div class="val">50 478</div><div class="lbl">Listes</div></div>
   </div>
 
-  <!-- Filtres -->
-  <h2 class="section-hdr">Résultats des principales villes</h2>
-  <div class="filter-tabs">
-    <div class="filter-tab active" onclick="filterCities('all')">Toutes</div>
-    <div class="filter-tab" onclick="filterCities('2t')">2e tour</div>
-    <div class="filter-tab" onclick="filterCities('elu')">Élus au 1er tour</div>
-    <div class="filter-tab" onclick="filterCities('gauche')">Gauche en tête</div>
-    <div class="filter-tab" onclick="filterCities('droite')">Droite en tête</div>
-    <div class="filter-tab" onclick="filterCities('rn')">RN en tête</div>
-  </div>
-
-  <div class="cities-grid" id="citiesGrid"></div>
-
-  <!-- Alliances -->
-  <h2 class="section-hdr">Alliances & enjeux pour le 2e tour (22 mars)</h2>
-  <div class="alliances-grid">
-    <div class="alliance-card">
-      <h4 style="color:var(--ps)">Gauche modérée (PS, PCF, EELV)</h4>
-      <p>Olivier Faure (PS) a exclu tout accord national avec LFI. La question des fusions se posera localement — notamment à Lille, Paris et Marseille.</p>
-    </div>
-    <div class="alliance-card">
-      <h4 style="color:var(--lfi)">LFI — isolation relative</h4>
-      <p>89 % des proches LFI souhaitent une union avec le PS, mais 75 % des Français y sont opposés. LFI peut se retrouver isolée dans certaines villes.</p>
-    </div>
-    <div class="alliance-card">
-      <h4 style="color:var(--rn)">RN / UDR — dynamique forte</h4>
-      <p>Perpignan et Hénin-Beaumont élus dès le 1er tour, bons scores à Toulon, Marseille et Nice. 78 % des proches RN favorables aux fusions avec LR.</p>
-    </div>
-    <div class="alliance-card">
-      <h4 style="color:var(--lr)">LR / Horizons — front républicain ?</h4>
-      <p>64 % des proches LR favorables à des fusions avec RN et 69 % avec Renaissance/Horizons. Bruno Retailleau appelle à un « grand rassemblement de la droite ».</p>
-    </div>
-    <div class="alliance-card">
-      <h4 style="color:var(--eco)">Écologistes — rôle d'arbitre</h4>
-      <p>À Lille, les écologistes arbitrent entre PS et LFI. À Strasbourg, EELV est en recul. À Bordeaux et Grenoble, l'écologie résiste face aux droites mobilisées.</p>
-    </div>
-    <div class="alliance-card">
-      <h4 style="color:var(--accent)">Contexte — Test avant 2027</h4>
-      <p>Ces municipales sont un test grandeur nature à un an de la présidentielle 2027. La participation en hausse (+17 pts vs 2020) montre une remobilisation civique.</p>
-    </div>
-  </div>
-
-  <!-- Sondages -->
-  <h2 class="section-hdr">Sondages — Attitudes envers les fusions (2e tour)</h2>
-  <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.25rem;margin-bottom:2rem;">
-    <div class="sondage-row"><span class="sondage-label" style="color:var(--lfi)">Proches LFI pro-union PS</span><div class="sondage-track"><div class="sondage-fill" style="width:89%;background:var(--lfi)"></div></div><span class="sondage-pct" style="color:var(--lfi)">89 %</span></div>
-    <div class="sondage-row"><span class="sondage-label" style="color:var(--rn)">Proches RN pro-fusion LR/RN</span><div class="sondage-track"><div class="sondage-fill" style="width:78%;background:var(--rn)"></div></div><span class="sondage-pct" style="color:var(--rn)">78 %</span></div>
-    <div class="sondage-row"><span class="sondage-label" style="color:var(--lr)">Proches LR pro-fusion LR/RN</span><div class="sondage-track"><div class="sondage-fill" style="width:64%;background:var(--lr)"></div></div><span class="sondage-pct" style="color:var(--lr)">64 %</span></div>
-    <div class="sondage-row"><span class="sondage-label" style="color:var(--ps)">Proches PS pro-union LFI</span><div class="sondage-track"><div class="sondage-fill" style="width:36%;background:var(--ps)"></div></div><span class="sondage-pct" style="color:var(--ps)">36 %</span></div>
-    <div class="sondage-row"><span class="sondage-label" style="color:var(--div)">Français opposés union LFI/gauche</span><div class="sondage-track"><div class="sondage-fill" style="width:75%;background:var(--div)"></div></div><span class="sondage-pct" style="color:var(--div)">75 %</span></div>
-    <div style="font-size:0.72rem;color:var(--text2);margin-top:0.75rem;">Sources : Ipsos-BVA-Cesi / France Bleu</div>
-  </div>
-
-</div><!-- container -->
+</div>
 
 <footer>
-  <p>Sources officielles : <a href="https://www.resultats-elections.interieur.gouv.fr/municipales2026/" target="_blank">Ministère de l'Intérieur</a> |
+  <p>Sources : <a href="https://www.resultats-elections.interieur.gouv.fr/municipales2026/" target="_blank">Ministère de l'Intérieur</a> |
   <a href="https://www.franceinfo.fr/elections/carte-resultats-du-1er-tour-des-municipales-2026-decouvrez-les-scores-des-candidats-commune-par-commune-en-france_7858088.html" target="_blank">Franceinfo</a> |
   <a href="https://www.france24.com/fr/france/20260315-municipales-2026-les-resultats-du-premier-tour-dans-les-principales-villes-de-france" target="_blank">France 24</a> |
   <a href="https://www.publicsenat.fr/actualites/politique/carte-municipales-2026-retrouvez-tous-les-resultats-commune-par-commune" target="_blank">Public Sénat</a> |
-  <a href="https://www.data.gouv.fr/reuses/resultats-des-elections-municipales-2026" target="_blank">data.gouv.fr (Open Data)</a></p>
+  <a href="https://www.data.gouv.fr/reuses/resultats-des-elections-municipales-2026" target="_blank">data.gouv.fr</a></p>
   <p style="margin-top:0.5rem;">Estimations Ipsos-BVA-Cesi — Dernière mise à jour : <span id="lastUpdate">15 mars 2026, soirée électorale</span></p>
 </footer>
 
 <script>
 // ===== DATA =====
-const CITIES_DATA = [
+const CITIES = [
   {
-    id: "paris", name: "Paris", pop: "2,1 M hab.", dept: "Île-de-France",
-    lat: 48.8566, lng: 2.3522, participation: 44.01,
-    maireSortant: "Anne Hidalgo (PS)", status: "2t", bord: "gauche",
-    tags: ["gauche","2t"],
-    note: "Quinquangulaire inédite — second tour le 22 mars",
-    sources: [
-      {label:"Ministère de l'Intérieur", url:"https://www.resultats-elections.interieur.gouv.fr/municipales2026/075/"},
-      {label:"Franceinfo — Carte Paris", url:"https://www.franceinfo.fr/elections/carte-resultats-du-1er-tour-des-municipales-2026-a-paris-decouvrez-les-candidats-arrives-en-tete-dans-chaque-arrondissement_7862705.html"}
-    ],
-    candidats: [
-      {nom:"Emmanuel Grégoire", parti:"PS", bord:"Gauche", score:36.5, color:"var(--ps)"},
-      {nom:"Rachida Dati", parti:"LR", bord:"Droite", score:24.9, color:"var(--lr)"},
-      {nom:"Sophia Chikirou", parti:"LFI", bord:"Extrême gauche", score:13.7, color:"var(--lfi)"},
-      {nom:"Pierre-Yves Bournazel", parti:"Horizons", bord:"Centre", score:11.8, color:"var(--re)"},
-      {nom:"Sarah Knafo", parti:"Reconquête", bord:"Extrême droite", score:9, color:"var(--rec)"}
+    id:"paris", name:"Paris", pop:"2,1 M hab.", dept:"Île-de-France",
+    lat:48.8566, lng:2.3522, participation:44.01,
+    maireSortant:"Anne Hidalgo (PS)", status:"2t", bord:"gauche", tags:["gauche","2t"],
+    note:"Quinquangulaire inédite — second tour le 22 mars",
+    sources:[{label:"Ministère de l'Intérieur",url:"https://www.resultats-elections.interieur.gouv.fr/municipales2026/075/"},{label:"Franceinfo — Carte Paris",url:"https://www.franceinfo.fr/elections/carte-resultats-du-1er-tour-des-municipales-2026-a-paris-decouvrez-les-candidats-arrives-en-tete-dans-chaque-arrondissement_7862705.html"}],
+    candidats:[
+      {nom:"E. Grégoire",parti:"PS",bord:"Gauche",score:36.5,color:"var(--ps)"},
+      {nom:"R. Dati",parti:"LR",bord:"Droite",score:24.9,color:"var(--lr)"},
+      {nom:"S. Chikirou",parti:"LFI",bord:"Extrême gauche",score:13.7,color:"var(--lfi)"},
+      {nom:"P-Y. Bournazel",parti:"Horizons",bord:"Centre",score:11.8,color:"var(--re)"},
+      {nom:"S. Knafo",parti:"Reconquête",bord:"Extrême droite",score:9,color:"var(--rec)"}
     ]
   },
   {
-    id: "marseille", name: "Marseille", pop: "873 000 hab.", dept: "Bouches-du-Rhône",
-    lat: 43.2965, lng: 5.3698, participation: 52,
-    maireSortant: "Benoît Payan (PS)", status: "2t", bord: "indecis",
-    tags: ["gauche","rn","2t"],
-    note: "Payan et Allisio à égalité — duel serré annoncé le 22 mars",
-    sources: [
-      {label:"Ministère de l'Intérieur", url:"https://www.resultats-elections.interieur.gouv.fr/municipales2026/013/"},
-      {label:"France 24", url:"https://www.france24.com/fr/france/20260315-municipales-2026-les-resultats-du-premier-tour-dans-les-principales-villes-de-france"}
-    ],
-    candidats: [
-      {nom:"Benoît Payan", parti:"PS-PCF-Éco", bord:"Gauche", score:34.5, color:"var(--ps)"},
-      {nom:"Franck Allisio", parti:"RN", bord:"Extrême droite", score:34.5, color:"var(--rn)"},
-      {nom:"Martine Vassal", parti:"DVD-LR-RE", bord:"Droite-Centre", score:19, color:"var(--lr)"},
-      {nom:"Sébastien Delogu", parti:"LFI", bord:"Extrême gauche", score:10, color:"var(--lfi)"}
+    id:"marseille", name:"Marseille", pop:"873 000 hab.", dept:"Bouches-du-Rhône",
+    lat:43.2965, lng:5.3698, participation:52,
+    maireSortant:"Benoît Payan (PS)", status:"2t", bord:"indecis", tags:["gauche","rn","2t"],
+    note:"Payan et Allisio à égalité — duel serré annoncé le 22 mars",
+    sources:[{label:"Ministère de l'Intérieur",url:"https://www.resultats-elections.interieur.gouv.fr/municipales2026/013/"},{label:"France 24",url:"https://www.france24.com/fr/france/20260315-municipales-2026-les-resultats-du-premier-tour-dans-les-principales-villes-de-france"}],
+    candidats:[
+      {nom:"B. Payan",parti:"PS-PCF-Éco",bord:"Gauche",score:34.5,color:"var(--ps)"},
+      {nom:"F. Allisio",parti:"RN",bord:"Extrême droite",score:34.5,color:"var(--rn)"},
+      {nom:"M. Vassal",parti:"DVD-LR-RE",bord:"Droite-Centre",score:19,color:"var(--lr)"},
+      {nom:"S. Delogu",parti:"LFI",bord:"Extrême gauche",score:10,color:"var(--lfi)"}
     ]
   },
   {
-    id: "lyon", name: "Lyon", pop: "516 000 hab.", dept: "Rhône",
-    lat: 45.764, lng: 4.8357, participation: 63.9,
-    maireSortant: "Grégory Doucet (EELV)", status: "2t", bord: "gauche",
-    tags: ["gauche","2t"],
-    note: "Surprise : Doucet devance Aulas alors que tous les sondages donnaient Aulas vainqueur",
-    sources: [
-      {label:"Ministère de l'Intérieur", url:"https://www.resultats-elections.interieur.gouv.fr/municipales2026/069/"},
-      {label:"France 3 — Carte Lyon", url:"https://france3-regions.franceinfo.fr/auvergne-rhone-alpes/rhone/lyon/carte-resultats-du-1er-tour-des-municipales-2026-a-lyon-et-ses-9-arrondissements-3312873.html"},
-      {label:"Mediacités Lyon", url:"https://www.mediacites.fr/municipales-2026/lyon/2026/03/15/direct-le-premier-tour-des-elections-municipales-et-metropolitaines-a-lyon/"}
-    ],
-    candidats: [
-      {nom:"Grégory Doucet", parti:"EELV-Union gauche", bord:"Gauche", score:37.3, color:"var(--eco)"},
-      {nom:"Jean-Michel Aulas", parti:"LR-RE-Horizons", bord:"Droite-Centre", score:35.4, color:"var(--lr)"},
-      {nom:"Anaïs Belouassa-Cherifi", parti:"LFI", bord:"Extrême gauche", score:10.9, color:"var(--lfi)"},
-      {nom:"Alexandre Dupalais", parti:"RN-UDR", bord:"Extrême droite", score:7.5, color:"var(--rn)"}
+    id:"lyon", name:"Lyon", pop:"516 000 hab.", dept:"Rhône",
+    lat:45.764, lng:4.8357, participation:63.9,
+    maireSortant:"Grégory Doucet (EELV)", status:"2t", bord:"gauche", tags:["gauche","2t"],
+    note:"Surprise : Doucet devance Aulas malgré les sondages",
+    sources:[{label:"Ministère de l'Intérieur",url:"https://www.resultats-elections.interieur.gouv.fr/municipales2026/069/"},{label:"France 3 Lyon",url:"https://france3-regions.franceinfo.fr/auvergne-rhone-alpes/rhone/lyon/carte-resultats-du-1er-tour-des-municipales-2026-a-lyon-et-ses-9-arrondissements-3312873.html"},{label:"Mediacités",url:"https://www.mediacites.fr/municipales-2026/lyon/2026/03/15/direct-le-premier-tour-des-elections-municipales-et-metropolitaines-a-lyon/"}],
+    candidats:[
+      {nom:"G. Doucet",parti:"EELV-Union gauche",bord:"Gauche",score:37.3,color:"var(--eco)"},
+      {nom:"J-M. Aulas",parti:"LR-RE-Horizons",bord:"Droite-Centre",score:35.4,color:"var(--lr)"},
+      {nom:"A. Belouassa-Cherifi",parti:"LFI",bord:"Extrême gauche",score:10.9,color:"var(--lfi)"},
+      {nom:"A. Dupalais",parti:"RN-UDR",bord:"Extrême droite",score:7.5,color:"var(--rn)"}
     ]
   },
   {
-    id: "toulouse", name: "Toulouse", pop: "479 000 hab.", dept: "Haute-Garonne",
-    lat: 43.6047, lng: 1.4442, participation: 56.5,
-    maireSortant: "Jean-Luc Moudenc (LR-Horizons)", status: "2t", bord: "droite",
-    tags: ["droite","2t"],
-    note: "Moudenc en tête — Piquemal (LFI) devance l'union de la gauche",
-    sources: [
-      {label:"Ministère de l'Intérieur", url:"https://www.resultats-elections.interieur.gouv.fr/municipales2026/031/"},
-      {label:"France Bleu Occitanie", url:"https://www.francebleu.fr/infos/elections/direct-municipales-2026-suivez-les-resultats-du-premier-tour-partout-en-france-avec-ici-6907302"}
-    ],
-    candidats: [
-      {nom:"Jean-Luc Moudenc", parti:"LR-RE-Horizons", bord:"Droite-Centre", score:37.3, color:"var(--lr)"},
-      {nom:"François Piquemal", parti:"LFI", bord:"Extrême gauche", score:27.2, color:"var(--lfi)"},
-      {nom:"François Briançon", parti:"PS-Union gauche", bord:"Gauche", score:24.7, color:"var(--ps)"}
+    id:"toulouse", name:"Toulouse", pop:"479 000 hab.", dept:"Haute-Garonne",
+    lat:43.6047, lng:1.4442, participation:56.5,
+    maireSortant:"Jean-Luc Moudenc (LR-Horizons)", status:"2t", bord:"droite", tags:["droite","2t"],
+    note:"Moudenc en tête — Piquemal (LFI) devance l'union de la gauche",
+    sources:[{label:"Ministère de l'Intérieur",url:"https://www.resultats-elections.interieur.gouv.fr/municipales2026/031/"},{label:"France Bleu Occitanie",url:"https://www.francebleu.fr/infos/elections/direct-municipales-2026-suivez-les-resultats-du-premier-tour-partout-en-france-avec-ici-6907302"}],
+    candidats:[
+      {nom:"J-L. Moudenc",parti:"LR-RE-Horizons",bord:"Droite-Centre",score:37.3,color:"var(--lr)"},
+      {nom:"F. Piquemal",parti:"LFI",bord:"Extrême gauche",score:27.2,color:"var(--lfi)"},
+      {nom:"F. Briançon",parti:"PS-Union gauche",bord:"Gauche",score:24.7,color:"var(--ps)"}
     ]
   },
   {
-    id: "nice", name: "Nice", pop: "342 000 hab.", dept: "Alpes-Maritimes",
-    lat: 43.7102, lng: 7.262, participation: 53.8,
-    maireSortant: "Christian Estrosi (Horizons)", status: "2t", bord: "rn",
-    tags: ["rn","2t"],
-    note: "Ciotti (UDR/RN) devance nettement Estrosi — duel droite vs droite souverainiste",
-    sources: [
-      {label:"Ministère de l'Intérieur", url:"https://www.resultats-elections.interieur.gouv.fr/municipales2026/006/"},
-      {label:"France 24", url:"https://www.france24.com/fr/france/20260315-municipales-2026-les-resultats-du-premier-tour-dans-les-principales-villes-de-france"}
-    ],
-    candidats: [
-      {nom:"Éric Ciotti", parti:"UDR (allié RN)", bord:"Droite souverainiste", score:41.9, color:"var(--udr)"},
-      {nom:"Christian Estrosi", parti:"Horizons", bord:"Centre-droit", score:31, color:"var(--re)"},
-      {nom:"Juliette Chesnel-Le Roux", parti:"Gauche unie", bord:"Gauche", score:12.2, color:"var(--ps)"}
+    id:"nice", name:"Nice", pop:"342 000 hab.", dept:"Alpes-Maritimes",
+    lat:43.7102, lng:7.262, participation:53.8,
+    maireSortant:"Christian Estrosi (Horizons)", status:"2t", bord:"rn", tags:["rn","2t"],
+    note:"Ciotti (UDR/RN) devance nettement Estrosi",
+    sources:[{label:"Ministère de l'Intérieur",url:"https://www.resultats-elections.interieur.gouv.fr/municipales2026/006/"},{label:"France 24",url:"https://www.france24.com/fr/france/20260315-municipales-2026-les-resultats-du-premier-tour-dans-les-principales-villes-de-france"}],
+    candidats:[
+      {nom:"É. Ciotti",parti:"UDR (allié RN)",bord:"Droite souverainiste",score:41.9,color:"var(--udr)"},
+      {nom:"C. Estrosi",parti:"Horizons",bord:"Centre-droit",score:31,color:"var(--re)"},
+      {nom:"J. Chesnel-Le Roux",parti:"Gauche unie",bord:"Gauche",score:12.2,color:"var(--ps)"}
     ]
   },
   {
-    id: "nantes", name: "Nantes", pop: "314 000 hab.", dept: "Loire-Atlantique",
-    lat: 47.2184, lng: -1.5536, participation: 59.8,
-    maireSortant: "Johanna Rolland (PS)", status: "2t", bord: "gauche",
-    tags: ["gauche","2t"],
-    note: "Rolland en tête — résultats détaillés en cours",
-    sources: [
-      {label:"Ministère de l'Intérieur", url:"https://www.resultats-elections.interieur.gouv.fr/municipales2026/044/"},
-      {label:"France 3 Pays de la Loire", url:"https://france3-regions.franceinfo.fr/pays-de-la-loire/loire-atlantique/nantes/direct-resultats-1er-tour-municipales-2026-a-nantes-angers-laval-le-mans-et-la-roche-sur-yon-suivez-la-soiree-electorale-3313002.html"}
-    ],
-    candidats: [
-      {nom:"Johanna Rolland", parti:"PS", bord:"Gauche", score:38, color:"var(--ps)"},
-      {nom:"Candidat droite-centre", parti:"LR-RE", bord:"Droite-Centre", score:31, color:"var(--lr)"}
+    id:"nantes", name:"Nantes", pop:"314 000 hab.", dept:"Loire-Atlantique",
+    lat:47.2184, lng:-1.5536, participation:59.8,
+    maireSortant:"Johanna Rolland (PS)", status:"2t", bord:"gauche", tags:["gauche","2t"],
+    note:"Rolland en tête — résultats détaillés en cours",
+    sources:[{label:"Ministère de l'Intérieur",url:"https://www.resultats-elections.interieur.gouv.fr/municipales2026/044/"},{label:"France 3 Pays de la Loire",url:"https://france3-regions.franceinfo.fr/pays-de-la-loire/loire-atlantique/nantes/direct-resultats-1er-tour-municipales-2026-a-nantes-angers-laval-le-mans-et-la-roche-sur-yon-suivez-la-soiree-electorale-3313002.html"}],
+    candidats:[
+      {nom:"J. Rolland",parti:"PS",bord:"Gauche",score:38,color:"var(--ps)"},
+      {nom:"Candidat droite-centre",parti:"LR-RE",bord:"Droite-Centre",score:31,color:"var(--lr)"}
     ]
   },
   {
-    id: "strasbourg", name: "Strasbourg", pop: "285 000 hab.", dept: "Bas-Rhin",
-    lat: 48.5734, lng: 7.7521, participation: 56.9,
-    maireSortant: "Jeanne Barseghian (EELV)", status: "2t", bord: "gauche",
-    tags: ["gauche","2t"],
-    note: "Trautmann (PS) devance la maire sortante EELV — possible quadrangulaire",
-    sources: [
-      {label:"Ministère de l'Intérieur", url:"https://www.resultats-elections.interieur.gouv.fr/municipales2026/067/"},
-      {label:"France Bleu Alsace", url:"https://www.francebleu.fr/infos/elections/direct-municipales-2026-suivez-les-resultats-du-premier-tour-partout-en-france-avec-ici-6907302"}
-    ],
-    candidats: [
-      {nom:"Catherine Trautmann", parti:"PS", bord:"Gauche", score:25.1, color:"var(--ps)"},
-      {nom:"Jean-Philippe Vetter", parti:"LR", bord:"Droite", score:23, color:"var(--lr)"},
-      {nom:"Jeanne Barseghian", parti:"EELV", bord:"Centre-gauche", score:18.8, color:"var(--eco)"},
-      {nom:"Florian Kobryn", parti:"RN", bord:"Extrême droite", score:11.8, color:"var(--rn)"}
+    id:"strasbourg", name:"Strasbourg", pop:"285 000 hab.", dept:"Bas-Rhin",
+    lat:48.5734, lng:7.7521, participation:56.9,
+    maireSortant:"Jeanne Barseghian (EELV)", status:"2t", bord:"gauche", tags:["gauche","2t"],
+    note:"Trautmann (PS) devance la maire sortante EELV — possible quadrangulaire",
+    sources:[{label:"Ministère de l'Intérieur",url:"https://www.resultats-elections.interieur.gouv.fr/municipales2026/067/"},{label:"France Bleu Alsace",url:"https://www.francebleu.fr/infos/elections/direct-municipales-2026-suivez-les-resultats-du-premier-tour-partout-en-france-avec-ici-6907302"}],
+    candidats:[
+      {nom:"C. Trautmann",parti:"PS",bord:"Gauche",score:25.1,color:"var(--ps)"},
+      {nom:"J-P. Vetter",parti:"LR",bord:"Droite",score:23,color:"var(--lr)"},
+      {nom:"J. Barseghian",parti:"EELV",bord:"Centre-gauche",score:18.8,color:"var(--eco)"},
+      {nom:"F. Kobryn",parti:"RN",bord:"Extrême droite",score:11.8,color:"var(--rn)"}
     ]
   },
   {
-    id: "montpellier", name: "Montpellier", pop: "285 000 hab.", dept: "Hérault",
-    lat: 43.6108, lng: 3.8767, participation: 49.5,
-    maireSortant: "Michaël Delafosse (PS)", status: "2t", bord: "gauche",
-    tags: ["gauche","2t"],
-    note: "13 listes dont 6 à gauche — situation morcelée, résultats en cours",
-    sources: [
-      {label:"Ministère de l'Intérieur", url:"https://www.resultats-elections.interieur.gouv.fr/municipales2026/034/"},
-      {label:"France Bleu Hérault", url:"https://www.francebleu.fr/occitanie/herault-34/direct-municipales-2026-suivez-les-resultats-du-premier-tour-dans-l-herault-2519499"}
-    ],
-    candidats: [
-      {nom:"Michaël Delafosse", parti:"PS", bord:"Gauche", score:null, color:"var(--ps)"}
+    id:"montpellier", name:"Montpellier", pop:"285 000 hab.", dept:"Hérault",
+    lat:43.6108, lng:3.8767, participation:49.5,
+    maireSortant:"Michaël Delafosse (PS)", status:"2t", bord:"gauche", tags:["gauche","2t"],
+    note:"13 listes dont 6 à gauche — situation morcelée, résultats en cours",
+    sources:[{label:"Ministère de l'Intérieur",url:"https://www.resultats-elections.interieur.gouv.fr/municipales2026/034/"},{label:"France Bleu Hérault",url:"https://www.francebleu.fr/occitanie/herault-34/direct-municipales-2026-suivez-les-resultats-du-premier-tour-dans-l-herault-2519499"}],
+    candidats:[{nom:"M. Delafosse",parti:"PS",bord:"Gauche",score:null,color:"var(--ps)"}]
+  },
+  {
+    id:"bordeaux", name:"Bordeaux", pop:"254 000 hab.", dept:"Gironde",
+    lat:44.8378, lng:-0.5792, participation:58.1,
+    maireSortant:"Pierre Hurmic (EELV)", status:"2t", bord:"gauche", tags:["gauche","2t"],
+    note:"Hurmic en tête d'un cheveu devant Cazenave (RE) — percée de Dessertine",
+    sources:[{label:"Ministère de l'Intérieur",url:"https://www.resultats-elections.interieur.gouv.fr/municipales2026/033/"},{label:"France 3 Nouvelle-Aquitaine",url:"https://france3-regions.franceinfo.fr/nouvelle-aquitaine/gironde/bordeaux/resultats-1er-tour-des-municipales-2026-a-bordeaux-retrouvez-les-scores-de-tous-les-candidats-et-leurs-reactions-3308484.html"}],
+    candidats:[
+      {nom:"P. Hurmic",parti:"EELV-PS-PCF",bord:"Gauche",score:27.7,color:"var(--eco)"},
+      {nom:"T. Cazenave",parti:"Renaissance",bord:"Centre",score:25,color:"var(--re)"},
+      {nom:"P. Dessertine",parti:"Sans étiquette",bord:"Divers",score:19.9,color:"var(--div)"}
     ]
   },
   {
-    id: "bordeaux", name: "Bordeaux", pop: "254 000 hab.", dept: "Gironde",
-    lat: 44.8378, lng: -0.5792, participation: 58.1,
-    maireSortant: "Pierre Hurmic (EELV)", status: "2t", bord: "gauche",
-    tags: ["gauche","2t"],
-    note: "Hurmic (EELV) en tête d'un cheveu devant Cazenave (RE) — percée de Dessertine",
-    sources: [
-      {label:"Ministère de l'Intérieur", url:"https://www.resultats-elections.interieur.gouv.fr/municipales2026/033/"},
-      {label:"France 3 Nouvelle-Aquitaine", url:"https://france3-regions.franceinfo.fr/nouvelle-aquitaine/gironde/bordeaux/resultats-1er-tour-des-municipales-2026-a-bordeaux-retrouvez-les-scores-de-tous-les-candidats-et-leurs-reactions-3308484.html"}
-    ],
-    candidats: [
-      {nom:"Pierre Hurmic", parti:"EELV-PS-PCF", bord:"Gauche", score:27.7, color:"var(--eco)"},
-      {nom:"Thomas Cazenave", parti:"Renaissance", bord:"Centre", score:25, color:"var(--re)"},
-      {nom:"Philippe Dessertine", parti:"Sans étiquette", bord:"Divers", score:19.9, color:"var(--div)"}
+    id:"lille", name:"Lille", pop:"234 000 hab.", dept:"Nord",
+    lat:50.6292, lng:3.0573, participation:52.7,
+    maireSortant:"Martine Aubry (PS) — successeur Deslandes", status:"2t", bord:"gauche", tags:["gauche","2t"],
+    note:"LFI en tête devant le PS — 5 listes qualifiées pour le second tour",
+    sources:[{label:"Ministère de l'Intérieur",url:"https://www.resultats-elections.interieur.gouv.fr/municipales2026/059/"},{label:"France 3 Nord",url:"https://france3-regions.franceinfo.fr/hauts-de-france/nord-0/lille/carte-resultats-1er-tour-municipales-2026-par-commune-dans-le-nord-lille-dunkerque-douai-roubaix-les-scores-detailles-3313125.html"},{label:"LCP",url:"https://lcp.fr/actualites/municipales-toulon-lille-rennes-perpignan-nos-premieres-estimations-433066"}],
+    candidats:[
+      {nom:"L. Addouche",parti:"LFI",bord:"Extrême gauche",score:31.3,color:"var(--lfi)"},
+      {nom:"A. Deslandes",parti:"PS-PCF",bord:"Gauche",score:26,color:"var(--ps)"},
+      {nom:"S. Baly",parti:"EELV",bord:"Centre-gauche",score:14.1,color:"var(--eco)"},
+      {nom:"V. Spillebout",parti:"Renaissance",bord:"Centre",score:11.3,color:"var(--re)"}
     ]
   },
   {
-    id: "lille", name: "Lille", pop: "234 000 hab.", dept: "Nord",
-    lat: 50.6292, lng: 3.0573, participation: 52.7,
-    maireSortant: "Martine Aubry (PS) — successeur Deslandes", status: "2t", bord: "gauche",
-    tags: ["gauche","2t"],
-    note: "LFI en tête devant le PS — 5 listes qualifiées pour le second tour",
-    sources: [
-      {label:"Ministère de l'Intérieur", url:"https://www.resultats-elections.interieur.gouv.fr/municipales2026/059/"},
-      {label:"France 3 Hauts-de-France — Carte Nord", url:"https://france3-regions.franceinfo.fr/hauts-de-france/nord-0/lille/carte-resultats-1er-tour-municipales-2026-par-commune-dans-le-nord-lille-dunkerque-douai-roubaix-les-scores-detailles-3313125.html"},
-      {label:"LCP estimations", url:"https://lcp.fr/actualites/municipales-toulon-lille-rennes-perpignan-nos-premieres-estimations-433066"}
-    ],
-    candidats: [
-      {nom:"Lahouaria Addouche", parti:"LFI", bord:"Extrême gauche", score:31.3, color:"var(--lfi)"},
-      {nom:"Arnaud Deslandes", parti:"PS-PCF", bord:"Gauche", score:26, color:"var(--ps)"},
-      {nom:"Stéphane Baly", parti:"EELV", bord:"Centre-gauche", score:14.1, color:"var(--eco)"},
-      {nom:"Violette Spillebout", parti:"Renaissance", bord:"Centre", score:11.3, color:"var(--re)"}
+    id:"rennes", name:"Rennes", pop:"222 000 hab.", dept:"Ille-et-Vilaine",
+    lat:48.1173, lng:-1.6778, participation:59.3,
+    maireSortant:"Nathalie Appéré (PS)", status:"2t", bord:"gauche", tags:["gauche","2t"],
+    note:"Appéré largement en tête",
+    sources:[{label:"Ministère de l'Intérieur",url:"https://www.resultats-elections.interieur.gouv.fr/municipales2026/035/"},{label:"Préfecture Ille-et-Vilaine",url:"https://www.ille-et-vilaine.gouv.fr/Actions-de-l-Etat/Citoyennete-et-elections/Elections/Elections-politiques/Elections-2026/Informations-generales/Municipales-2026-Les-resultats-en-Ille-et-Vilaine"}],
+    candidats:[
+      {nom:"N. Appéré",parti:"PS-EELV-PCF",bord:"Gauche",score:34.1,color:"var(--ps)"},
+      {nom:"C. Compagnon",parti:"Horizons-RE-MoDem",bord:"Centre",score:22,color:"var(--re)"},
+      {nom:"M. Mesmeur",parti:"LFI",bord:"Extrême gauche",score:19.1,color:"var(--lfi)"}
     ]
   },
   {
-    id: "rennes", name: "Rennes", pop: "222 000 hab.", dept: "Ille-et-Vilaine",
-    lat: 48.1173, lng: -1.6778, participation: 59.3,
-    maireSortant: "Nathalie Appéré (PS)", status: "2t", bord: "gauche",
-    tags: ["gauche","2t"],
-    note: "Appéré largement en tête — triangulaire ou quadrangulaire possible",
-    sources: [
-      {label:"Ministère de l'Intérieur", url:"https://www.resultats-elections.interieur.gouv.fr/municipales2026/035/"},
-      {label:"Préfecture Ille-et-Vilaine", url:"https://www.ille-et-vilaine.gouv.fr/Actions-de-l-Etat/Citoyennete-et-elections/Elections/Elections-politiques/Elections-2026/Informations-generales/Municipales-2026-Les-resultats-en-Ille-et-Vilaine"}
-    ],
-    candidats: [
-      {nom:"Nathalie Appéré", parti:"PS-EELV-PCF", bord:"Gauche", score:34.1, color:"var(--ps)"},
-      {nom:"Charles Compagnon", parti:"Horizons-RE-MoDem", bord:"Centre", score:22, color:"var(--re)"},
-      {nom:"Marie Mesmeur", parti:"LFI", bord:"Extrême gauche", score:19.1, color:"var(--lfi)"}
+    id:"toulon", name:"Toulon", pop:"176 000 hab.", dept:"Var",
+    lat:43.1242, lng:5.928, participation:56.5,
+    maireSortant:"Hubert Falco (DVD)", status:"2t", bord:"rn", tags:["rn","2t"],
+    note:"RN largement en tête — listes de gauche éliminées",
+    sources:[{label:"Ministère de l'Intérieur",url:"https://www.resultats-elections.interieur.gouv.fr/municipales2026/083/"},{label:"LCP",url:"https://lcp.fr/actualites/municipales-toulon-lille-rennes-perpignan-nos-premieres-estimations-433066"}],
+    candidats:[
+      {nom:"L. Lavalette",parti:"RN",bord:"Extrême droite",score:42,color:"var(--rn)"},
+      {nom:"J. Massi",parti:"DVD",bord:"Divers droite",score:28.1,color:"var(--div)"},
+      {nom:"M. Bonnus",parti:"LR-Horizons",bord:"Droite-Centre",score:16.5,color:"var(--lr)"}
     ]
   },
   {
-    id: "toulon", name: "Toulon", pop: "176 000 hab.", dept: "Var",
-    lat: 43.1242, lng: 5.928, participation: 56.5,
-    maireSortant: "Hubert Falco (DVD)", status: "2t", bord: "rn",
-    tags: ["rn","2t"],
-    note: "RN largement en tête — les listes de gauche éliminées du second tour",
-    sources: [
-      {label:"Ministère de l'Intérieur", url:"https://www.resultats-elections.interieur.gouv.fr/municipales2026/083/"},
-      {label:"LCP estimations", url:"https://lcp.fr/actualites/municipales-toulon-lille-rennes-perpignan-nos-premieres-estimations-433066"}
-    ],
-    candidats: [
-      {nom:"Laure Lavalette", parti:"RN", bord:"Extrême droite", score:42, color:"var(--rn)"},
-      {nom:"Josée Massi", parti:"DVD", bord:"Divers droite", score:28.1, color:"var(--div)"},
-      {nom:"Michel Bonnus", parti:"LR-Horizons", bord:"Droite-Centre", score:16.5, color:"var(--lr)"}
+    id:"lehavre", name:"Le Havre", pop:"172 000 hab.", dept:"Seine-Maritime",
+    lat:49.4944, lng:0.1079, participation:55,
+    maireSortant:"Édouard Philippe (Horizons)", status:"2t", bord:"droite", tags:["droite","2t"],
+    note:"Philippe largement en tête — triangulaire annoncée",
+    sources:[{label:"Ministère de l'Intérieur",url:"https://www.resultats-elections.interieur.gouv.fr/municipales2026/076/"},{label:"France 3 Normandie",url:"https://france3-regions.franceinfo.fr/normandie/seine-maritime/havre/resultats-1er-tour-des-elections-municipales-2026-au-havre-decouvrez-le-score-des-candidats-en-lice-des-20-heures-3313011.html"}],
+    candidats:[
+      {nom:"É. Philippe",parti:"Horizons",bord:"Centre",score:43.8,color:"var(--re)"},
+      {nom:"J-P. Lecoq",parti:"PCF-Gauche unie",bord:"Gauche",score:33.3,color:"var(--pcf)"},
+      {nom:"F. Keller",parti:"UDR-RN",bord:"Extrême droite",score:15.3,color:"var(--rn)"}
     ]
   },
   {
-    id: "lehavre", name: "Le Havre", pop: "172 000 hab.", dept: "Seine-Maritime",
-    lat: 49.4944, lng: 0.1079, participation: 55,
-    maireSortant: "Édouard Philippe (Horizons)", status: "2t", bord: "droite",
-    tags: ["droite","2t"],
-    note: "Philippe largement en tête — triangulaire annoncée",
-    sources: [
-      {label:"Ministère de l'Intérieur", url:"https://www.resultats-elections.interieur.gouv.fr/municipales2026/076/"},
-      {label:"France 3 Normandie", url:"https://france3-regions.franceinfo.fr/normandie/seine-maritime/havre/resultats-1er-tour-des-elections-municipales-2026-au-havre-decouvrez-le-score-des-candidats-en-lice-des-20-heures-3313011.html"}
-    ],
-    candidats: [
-      {nom:"Édouard Philippe", parti:"Horizons", bord:"Centre", score:43.8, color:"var(--re)"},
-      {nom:"Jean-Paul Lecoq", parti:"PCF-Gauche unie", bord:"Gauche", score:33.3, color:"var(--pcf)"},
-      {nom:"Franck Keller", parti:"UDR-RN", bord:"Extrême droite", score:15.3, color:"var(--rn)"}
+    id:"grenoble", name:"Grenoble", pop:"158 000 hab.", dept:"Isère",
+    lat:45.1885, lng:5.7245, participation:55,
+    maireSortant:"Éric Piolle (EELV) — ne se représente pas", status:"2t", bord:"gauche", tags:["gauche","2t"],
+    note:"Ruffin (Union gauche) vs Carignon (Droite) — résultats en cours",
+    sources:[{label:"Ministère de l'Intérieur",url:"https://www.resultats-elections.interieur.gouv.fr/municipales2026/038/"},{label:"France Bleu Isère",url:"https://www.francebleu.fr/infos/elections/direct-municipales-2026-suivez-les-resultats-du-premier-tour-partout-en-france-avec-ici-6907302"}],
+    candidats:[
+      {nom:"L. Ruffin",parti:"Union gauche hors LFI",bord:"Gauche",score:null,color:"var(--eco)"},
+      {nom:"A. Carignon",parti:"Droite-Macronie",bord:"Droite-Centre",score:null,color:"var(--lr)"}
     ]
   },
   {
-    id: "grenoble", name: "Grenoble", pop: "158 000 hab.", dept: "Isère",
-    lat: 45.1885, lng: 5.7245, participation: 55,
-    maireSortant: "Éric Piolle (EELV) — ne se représente pas", status: "2t", bord: "gauche",
-    tags: ["gauche","2t"],
-    note: "Ruffin (Union gauche hors LFI) vs Carignon (Droite) — résultats en cours",
-    sources: [
-      {label:"Ministère de l'Intérieur", url:"https://www.resultats-elections.interieur.gouv.fr/municipales2026/038/"},
-      {label:"France Bleu Isère", url:"https://www.francebleu.fr/infos/elections/direct-municipales-2026-suivez-les-resultats-du-premier-tour-partout-en-france-avec-ici-6907302"}
-    ],
-    candidats: [
-      {nom:"Laurence Ruffin", parti:"Union gauche hors LFI", bord:"Gauche", score:null, color:"var(--eco)"},
-      {nom:"Alain Carignon", parti:"Droite-Macronie", bord:"Droite-Centre", score:null, color:"var(--lr)"}
+    id:"perpignan", name:"Perpignan", pop:"120 000 hab.", dept:"Pyrénées-Orientales",
+    lat:42.6886, lng:2.8948, participation:55,
+    maireSortant:"Louis Aliot (RN)", status:"elu", bord:"rn", tags:["rn","elu"],
+    note:"Réélu dès le 1er tour à la majorité absolue",
+    sources:[{label:"Ministère de l'Intérieur",url:"https://www.resultats-elections.interieur.gouv.fr/municipales2026/066/"},{label:"LCP",url:"https://lcp.fr/actualites/municipales-toulon-lille-rennes-perpignan-nos-premieres-estimations-433066"}],
+    candidats:[
+      {nom:"L. Aliot",parti:"RN",bord:"Extrême droite",score:51.4,color:"var(--rn)"},
+      {nom:"A. Langevine",parti:"PS",bord:"Gauche",score:15.8,color:"var(--ps)"},
+      {nom:"B. Nougayrède",parti:"DVD",bord:"Divers droite",score:13,color:"var(--div)"},
+      {nom:"M. Idrac",parti:"LFI-Éco",bord:"Extrême gauche",score:9.7,color:"var(--lfi)"}
     ]
   },
   {
-    id: "perpignan", name: "Perpignan", pop: "120 000 hab.", dept: "Pyrénées-Orientales",
-    lat: 42.6886, lng: 2.8948, participation: 55,
-    maireSortant: "Louis Aliot (RN)", status: "elu", bord: "rn",
-    tags: ["rn","elu"],
-    note: "Réélu dès le 1er tour à la majorité absolue",
-    sources: [
-      {label:"Ministère de l'Intérieur", url:"https://www.resultats-elections.interieur.gouv.fr/municipales2026/066/"},
-      {label:"LCP estimations", url:"https://lcp.fr/actualites/municipales-toulon-lille-rennes-perpignan-nos-premieres-estimations-433066"}
-    ],
-    candidats: [
-      {nom:"Louis Aliot", parti:"RN", bord:"Extrême droite", score:51.4, color:"var(--rn)"},
-      {nom:"Agnès Langevine", parti:"PS-Place Publique", bord:"Gauche", score:15.8, color:"var(--ps)"},
-      {nom:"Bruno Nougayrède", parti:"DVD", bord:"Divers droite", score:13, color:"var(--div)"},
-      {nom:"Mickaël Idrac", parti:"LFI-Éco", bord:"Extrême gauche", score:9.7, color:"var(--lfi)"}
-    ]
+    id:"henin", name:"Hénin-Beaumont", pop:"26 000 hab.", dept:"Pas-de-Calais",
+    lat:50.4226, lng:2.9503, participation:55,
+    maireSortant:"Steeve Briois (RN)", status:"elu", bord:"rn", tags:["rn","elu"],
+    note:"Victoire écrasante dès le 1er tour — 78,3 %",
+    sources:[{label:"Ministère de l'Intérieur",url:"https://www.resultats-elections.interieur.gouv.fr/municipales2026/062/"},{label:"France 24",url:"https://www.france24.com/fr/france/20260315-municipales-2026-les-resultats-du-premier-tour-dans-les-principales-villes-de-france"}],
+    candidats:[{nom:"S. Briois",parti:"RN",bord:"Extrême droite",score:78.3,color:"var(--rn)"}]
   },
   {
-    id: "henin", name: "Hénin-Beaumont", pop: "26 000 hab.", dept: "Pas-de-Calais",
-    lat: 50.4226, lng: 2.9503, participation: 55,
-    maireSortant: "Steeve Briois (RN)", status: "elu", bord: "rn",
-    tags: ["rn","elu"],
-    note: "Victoire écrasante dès le 1er tour — 78,3 %",
-    sources: [
-      {label:"Ministère de l'Intérieur", url:"https://www.resultats-elections.interieur.gouv.fr/municipales2026/062/"},
-      {label:"France 24", url:"https://www.france24.com/fr/france/20260315-municipales-2026-les-resultats-du-premier-tour-dans-les-principales-villes-de-france"}
-    ],
-    candidats: [
-      {nom:"Steeve Briois", parti:"RN", bord:"Extrême droite", score:78.3, color:"var(--rn)"}
-    ]
-  },
-  {
-    id: "roubaix", name: "Roubaix", pop: "98 000 hab.", dept: "Nord",
-    lat: 50.6942, lng: 3.1746, participation: 45,
-    maireSortant: "Alexandre Garcin (DVD)", status: "2t", bord: "gauche",
-    tags: ["gauche","2t"],
-    note: "Guiraud (LFI) très largement en tête — percée insoumise",
-    sources: [
-      {label:"Ministère de l'Intérieur", url:"https://www.resultats-elections.interieur.gouv.fr/municipales2026/059/"},
-      {label:"France 3 Hauts-de-France", url:"https://france3-regions.franceinfo.fr/hauts-de-france/nord-0/lille/carte-resultats-1er-tour-municipales-2026-par-commune-dans-le-nord-lille-dunkerque-douai-roubaix-les-scores-detailles-3313125.html"}
-    ],
-    candidats: [
-      {nom:"David Guiraud", parti:"LFI", bord:"Extrême gauche", score:46.5, color:"var(--lfi)"},
-      {nom:"Alexandre Garcin", parti:"DVD", bord:"Divers droite", score:20.3, color:"var(--div)"},
-      {nom:"Karim Amrouni", parti:"DVG", bord:"Divers gauche", score:16.7, color:"var(--ps)"},
-      {nom:"Céline Sayah", parti:"RN", bord:"Extrême droite", score:12.2, color:"var(--rn)"}
+    id:"roubaix", name:"Roubaix", pop:"98 000 hab.", dept:"Nord",
+    lat:50.6942, lng:3.1746, participation:45,
+    maireSortant:"Alexandre Garcin (DVD)", status:"2t", bord:"gauche", tags:["gauche","2t"],
+    note:"Guiraud (LFI) très largement en tête — percée insoumise",
+    sources:[{label:"Ministère de l'Intérieur",url:"https://www.resultats-elections.interieur.gouv.fr/municipales2026/059/"},{label:"France 3 Nord",url:"https://france3-regions.franceinfo.fr/hauts-de-france/nord-0/lille/carte-resultats-1er-tour-municipales-2026-par-commune-dans-le-nord-lille-dunkerque-douai-roubaix-les-scores-detailles-3313125.html"}],
+    candidats:[
+      {nom:"D. Guiraud",parti:"LFI",bord:"Extrême gauche",score:46.5,color:"var(--lfi)"},
+      {nom:"A. Garcin",parti:"DVD",bord:"Divers droite",score:20.3,color:"var(--div)"},
+      {nom:"K. Amrouni",parti:"DVG",bord:"Divers gauche",score:16.7,color:"var(--ps)"},
+      {nom:"C. Sayah",parti:"RN",bord:"Extrême droite",score:12.2,color:"var(--rn)"}
     ]
   }
 ];
 
-// ===== STATUS =====
-const IS_DEFINITIF = false; // Passer à true quand les résultats sont définitifs
-const REFRESH_INTERVAL = 5 * 60 * 1000; // 5 minutes
+const IS_DEFINITIF = false;
+const REFRESH_INTERVAL = 5 * 60 * 1000;
 let refreshCountdown = REFRESH_INTERVAL / 1000;
 
 // ===== AUTO REFRESH =====
@@ -699,204 +684,205 @@ function setupAutoRefresh() {
     document.getElementById('liveBadge').style.background = '#22C55E';
     return;
   }
-  // Try fetching fresh data from open data API
   tryFetchOpenData();
-  // Set up periodic refresh
-  setInterval(() => {
-    refreshCountdown = REFRESH_INTERVAL / 1000;
-    tryFetchOpenData();
-    location.reload();
-  }, REFRESH_INTERVAL);
-  // Countdown display
+  setInterval(() => { refreshCountdown = REFRESH_INTERVAL / 1000; tryFetchOpenData(); location.reload(); }, REFRESH_INTERVAL);
   setInterval(() => {
     if (refreshCountdown > 0) refreshCountdown--;
-    const m = Math.floor(refreshCountdown / 60);
-    const s = refreshCountdown % 60;
-    document.getElementById('refreshTimer').textContent =
-      'Prochain refresh : ' + m + 'min ' + String(s).padStart(2,'0') + 's';
+    const m = Math.floor(refreshCountdown / 60), s = refreshCountdown % 60;
+    document.getElementById('refreshTimer').textContent = 'Refresh : ' + m + ':' + String(s).padStart(2,'0');
   }, 1000);
 }
 
 async function tryFetchOpenData() {
   try {
-    // Tentative de récupération des données ouvertes du Ministère de l'Intérieur
-    const resp = await fetch('https://www.resultats-elections.interieur.gouv.fr/municipales2026/data/resultats.json', {
-      mode: 'cors', signal: AbortSignal.timeout(5000)
-    });
-    if (resp.ok) {
-      const data = await resp.json();
-      console.log('Données fraîches récupérées depuis le Ministère de l\'Intérieur:', data);
-      // Si les données sont disponibles, mettre à jour l'affichage
-      // Note: ceci nécessiterait un mapping spécifique selon le format de l'API
-    }
-  } catch(e) {
-    console.log('Open data non disponible (CORS ou hors-ligne), utilisation des données embarquées.');
-  }
-  // Fallback: essayer data.gouv.fr
+    const r = await fetch('https://www.resultats-elections.interieur.gouv.fr/municipales2026/data/resultats.json', {mode:'cors',signal:AbortSignal.timeout(5000)});
+    if (r.ok) console.log('Données fraîches MI:', await r.json());
+  } catch(e) { console.log('MI non dispo, données embarquées.'); }
   try {
-    const resp2 = await fetch('https://www.data.gouv.fr/api/1/datasets/?q=municipales+2026+resultats&page_size=1', {
-      mode: 'cors', signal: AbortSignal.timeout(5000)
-    });
-    if (resp2.ok) {
-      const d = await resp2.json();
-      if (d.data && d.data.length > 0) {
-        console.log('Dataset municipales 2026 trouvé sur data.gouv.fr:', d.data[0].title);
-      }
-    }
-  } catch(e) {
-    console.log('data.gouv.fr non disponible.');
-  }
+    const r2 = await fetch('https://www.data.gouv.fr/api/1/datasets/?q=municipales+2026+resultats&page_size=1', {mode:'cors',signal:AbortSignal.timeout(5000)});
+    if (r2.ok) { const d = await r2.json(); if (d.data && d.data[0]) console.log('data.gouv.fr:', d.data[0].title); }
+  } catch(e) { console.log('data.gouv.fr non dispo.'); }
 }
 
 // ===== MAP =====
 function initMap() {
-  const map = L.map('map', {
-    center: [46.6, 2.5], zoom: 6,
-    zoomControl: true, scrollWheelZoom: true
-  });
+  const map = L.map('map', {center:[46.6,2.5], zoom:6, scrollWheelZoom:true});
   L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/">CARTO</a>',
-    maxZoom: 19
+    attribution:'&copy; OpenStreetMap &copy; CARTO', maxZoom:19
   }).addTo(map);
-
-  const bordColors = {
-    gauche: '#FF6B6B', droite: '#1976D2', centre: '#FF9800',
-    rn: '#37474F', eco: '#4CAF50', lfi: '#9B59B6', indecis: '#90A4AE'
-  };
-
-  CITIES_DATA.forEach(city => {
-    const c = bordColors[city.bord] || '#90A4AE';
-    const marker = L.circleMarker([city.lat, city.lng], {
-      radius: Math.max(8, Math.min(18, city.candidats.length * 3 + 5)),
-      fillColor: c, fillOpacity: 0.85, color: '#fff', weight: 2
+  const bc = {gauche:'#FF6B6B',droite:'#1976D2',centre:'#FF9800',rn:'#37474F',eco:'#4CAF50',lfi:'#9B59B6',indecis:'#90A4AE'};
+  CITIES.forEach(city => {
+    const c = bc[city.bord] || '#90A4AE';
+    const mk = L.circleMarker([city.lat,city.lng], {
+      radius: Math.max(8, Math.min(16, city.candidats.length*3+4)),
+      fillColor:c, fillOpacity:0.85, color:'#fff', weight:2
     }).addTo(map);
-
-    let popupHTML = '<div style="min-width:220px">';
-    popupHTML += '<strong style="font-size:1rem">' + city.name + '</strong>';
-    popupHTML += ' <span style="font-size:0.7rem;background:' + (city.status === 'elu' ? '#22C55E33' : '#F59E0B33') +
-      ';color:' + (city.status === 'elu' ? '#22C55E' : '#F59E0B') +
-      ';padding:2px 6px;border-radius:999px">' + (city.status === 'elu' ? 'ÉLU' : '2e TOUR') + '</span>';
-    popupHTML += '<br><span style="font-size:0.72rem;color:#94A3B8">' + city.pop + ' — ' + city.dept + '</span>';
-    popupHTML += '<hr style="border-color:#475569;margin:6px 0">';
-
-    city.candidats.forEach(cand => {
-      const scoreText = cand.score !== null ? cand.score + ' %' : 'En attente';
-      popupHTML += '<div style="display:flex;justify-content:space-between;margin:3px 0;font-size:0.8rem">';
-      popupHTML += '<span>' + cand.nom + ' <span style="color:#94A3B8;font-size:0.7rem">(' + cand.parti + ')</span></span>';
-      popupHTML += '<strong style="color:' + c + '">' + scoreText + '</strong>';
-      popupHTML += '</div>';
-    });
-
-    popupHTML += '<hr style="border-color:#475569;margin:6px 0">';
-    popupHTML += '<div style="font-size:0.68rem;color:#94A3B8">';
-    city.sources.forEach(s => {
-      popupHTML += '<a href="' + s.url + '" target="_blank" style="color:#38BDF8">' + s.label + '</a><br>';
-    });
-    popupHTML += '</div></div>';
-
-    marker.bindPopup(popupHTML, {maxWidth: 320});
-
-    marker.on('mouseover', function() { this.setStyle({weight: 3, fillOpacity: 1}); });
-    marker.on('mouseout', function() { this.setStyle({weight: 2, fillOpacity: 0.85}); });
-
-    // Store ref for search
-    city._marker = marker;
-    city._map = map;
+    mk.on('click', () => openModal(city.id));
+    mk.on('mouseover', function(){ this.setStyle({weight:3,fillOpacity:1}); });
+    mk.on('mouseout', function(){ this.setStyle({weight:2,fillOpacity:0.85}); });
+    city._marker = mk; city._map = map;
   });
 }
 
-// ===== CITY CARDS =====
-function renderCities(filter) {
+// ===== COMPACT TILES =====
+function renderTiles(filter) {
   const grid = document.getElementById('citiesGrid');
   grid.innerHTML = '';
-  let filtered = CITIES_DATA;
+  let list = CITIES;
   if (filter && filter !== 'all') {
-    if (filter === '2t') filtered = CITIES_DATA.filter(c => c.status === '2t');
-    else if (filter === 'elu') filtered = CITIES_DATA.filter(c => c.status === 'elu');
-    else filtered = CITIES_DATA.filter(c => c.tags.includes(filter));
+    if (filter === '2t') list = CITIES.filter(c => c.status === '2t');
+    else if (filter === 'elu') list = CITIES.filter(c => c.status === 'elu');
+    else list = CITIES.filter(c => c.tags.includes(filter));
   }
-  filtered.forEach(city => {
-    const maxScore = Math.max(...city.candidats.map(c => c.score || 0), 1);
-    let candHTML = '';
-    city.candidats.forEach(cand => {
-      const pct = cand.score !== null ? ((cand.score / maxScore) * 100) : 0;
-      const scoreText = cand.score !== null ? cand.score.toFixed(1).replace('.0','') + ' %' : '—';
-      candHTML += '<div class="cand-row">' +
-        '<div class="cand-info">' +
-          '<div class="cand-name">' + cand.nom + (city.status === 'elu' && cand === city.candidats[0] ? ' &#10003;' : '') + '</div>' +
-          '<div class="cand-parti" style="color:' + cand.color + '">' + cand.parti + ' (' + cand.bord + ')</div>' +
-          '<div class="cand-bar-track"><div class="cand-bar-fill" style="width:' + pct + '%;background:' + cand.color + '"></div></div>' +
-        '</div>' +
-        '<div class="cand-score" style="color:' + cand.color + '">' + scoreText + '</div>' +
-      '</div>';
-    });
-    let srcHTML = '';
-    city.sources.forEach(s => {
-      srcHTML += '<a href="' + s.url + '" target="_blank">' + s.label + '</a> &middot; ';
-    });
-    srcHTML = srcHTML.slice(0, -9); // remove trailing middot
-
-    const bordColor = city.bord === 'gauche' ? 'var(--ps)' :
-                      city.bord === 'droite' ? 'var(--lr)' :
-                      city.bord === 'rn' ? 'var(--rn)' :
-                      city.bord === 'eco' ? 'var(--eco)' :
-                      city.bord === 'centre' ? 'var(--re)' : 'var(--div)';
-
-    grid.innerHTML += '<div class="city-card" id="card-' + city.id + '">' +
-      '<div class="bord-indicator" style="background:' + bordColor + '"></div>' +
-      '<div class="city-card-top">' +
-        '<div><div class="name">' + city.name + '</div>' +
-        '<div class="meta">' + city.pop + ' — ' + city.dept + '</div>' +
-        '<div class="mayor">Maire sortant : ' + city.maireSortant + '</div></div>' +
-        '<span class="status-badge ' + (city.status === 'elu' ? 'status-elu' : 'status-2t') + '">' +
-          (city.status === 'elu' ? 'Élu 1er tour' : '2e tour') +
-        '</span>' +
+  list.forEach(city => {
+    const bordColor = city.bord==='gauche'?'var(--ps)':city.bord==='droite'?'var(--lr)':city.bord==='rn'?'var(--rn)':city.bord==='eco'?'var(--eco)':city.bord==='centre'?'var(--re)':'var(--div)';
+    // Preview chips: top 2-3 candidates
+    const top = city.candidats.filter(c=>c.score!==null).slice(0,3);
+    const totalScore = top.reduce((s,c)=>s+(c.score||0),0);
+    let chipsHTML = top.map(c =>
+      '<span class="cand-chip"><span class="cdot" style="background:'+c.color+'"></span>'+c.parti+' <span class="cscore" style="color:'+c.color+'">'+(c.score!==null?c.score+'%':'—')+'</span></span>'
+    ).join(' / ');
+    if (!chipsHTML) chipsHTML = '<span style="color:var(--text2)">Résultats en attente</span>';
+    // Stacked bar
+    let barHTML = '';
+    if (totalScore > 0) {
+      top.forEach(c => {
+        const w = ((c.score||0)/100*100);
+        barHTML += '<div class="seg" style="width:'+w+'%;background:'+c.color+'"></div>';
+      });
+    }
+    const tile = document.createElement('div');
+    tile.className = 'city-tile';
+    tile.id = 'tile-' + city.id;
+    tile.onclick = () => openModal(city.id);
+    tile.innerHTML =
+      '<div class="bord-line" style="background:'+bordColor+'"></div>' +
+      '<div class="city-tile-header">' +
+        '<span class="name">'+city.name+'</span>' +
+        '<span class="status-badge '+(city.status==='elu'?'status-elu':'status-2t')+'">'+(city.status==='elu'?'Élu 1er tour':'2e tour')+'</span>' +
       '</div>' +
-      '<div class="city-card-body">' + candHTML + '</div>' +
-      (city.note ? '<div class="city-card-note">' + city.note + '</div>' : '') +
-      '<div class="city-card-source">Sources : ' + srcHTML + '</div>' +
-    '</div>';
+      '<div class="city-tile-preview">'+chipsHTML+'</div>' +
+      '<div class="city-tile-stacked-bar">'+barHTML+'</div>';
+    grid.appendChild(tile);
   });
 }
 
-// ===== FILTER =====
-function filterCities(f) {
-  document.querySelectorAll('.filter-tab').forEach(t => t.classList.remove('active'));
-  event.target.classList.add('active');
-  renderCities(f);
+// ===== MODAL =====
+function openModal(cityId) {
+  const city = CITIES.find(c => c.id === cityId);
+  if (!city) return;
+  const overlay = document.getElementById('modalOverlay');
+  const body = document.getElementById('modalBody');
+  const maxScore = Math.max(...city.candidats.map(c=>c.score||0), 1);
+
+  let html = '';
+  html += '<div class="modal-city-name">'+city.name+'</div>';
+  html += '<div class="modal-city-meta">'+city.pop+' — '+city.dept+'</div>';
+  html += '<div class="modal-city-mayor">Maire sortant : '+city.maireSortant+'</div>';
+
+  // Participation
+  html += '<div class="modal-section-title">Participation</div>';
+  html += '<div class="modal-part"><div class="modal-part-track"><div class="modal-part-fill" style="width:'+city.participation+'%"></div></div><span class="modal-part-pct">'+city.participation.toFixed(1).replace('.0','')+' %</span></div>';
+
+  // Resultats chart
+  const scored = city.candidats.filter(c=>c.score!==null);
+  if (scored.length > 0) {
+    html += '<div class="modal-section-title">Résultats 1er tour</div>';
+    html += '<div class="modal-chart-area">';
+    scored.forEach(c => {
+      const h = Math.max(4, (c.score / maxScore) * 100);
+      html += '<div class="chart-bar-group">' +
+        '<div class="chart-bar-value" style="color:'+c.color+'">'+c.score+'%</div>' +
+        '<div class="chart-bar" style="height:'+h+'px;background:'+c.color+'"></div>' +
+        '<div class="chart-bar-label">'+c.nom+'</div>' +
+      '</div>';
+    });
+    html += '</div>';
+  }
+
+  // Candidate detail list
+  html += '<div class="modal-section-title">Détail des candidats</div>';
+  city.candidats.forEach(cand => {
+    const pct = cand.score !== null ? ((cand.score / maxScore) * 100) : 0;
+    const scoreText = cand.score !== null ? cand.score + ' %' : '—';
+    html += '<div class="modal-cand-row">' +
+      '<div class="modal-cand-info">' +
+        '<div class="cand-name">'+cand.nom+(city.status==='elu'&&cand===city.candidats[0]?' &#10003;':'')+'</div>' +
+        '<div class="cand-parti" style="color:'+cand.color+'">'+cand.parti+' ('+cand.bord+')</div>' +
+        '<div class="modal-cand-bar-track"><div class="modal-cand-bar-fill" style="width:'+pct+'%;background:'+cand.color+'"></div></div>' +
+      '</div>' +
+      '<div class="modal-cand-score" style="color:'+cand.color+'">'+scoreText+'</div>' +
+    '</div>';
+  });
+
+  // 2nd tour section
+  if (city.status === '2t') {
+    html += '<div class="modal-section-title">Sondages &amp; projections 2e tour</div>';
+    html += '<div class="modal-2t-placeholder">Les sondages et projections pour le second tour (22 mars) seront affichés ici dès leur publication.</div>';
+  }
+
+  // Note
+  if (city.note) {
+    html += '<div class="modal-note">'+city.note+'</div>';
+  }
+
+  // Sources
+  html += '<div class="modal-sources"><strong style="font-size:0.72rem;color:var(--text2)">Sources :</strong> ';
+  city.sources.forEach(s => {
+    html += '<a href="'+s.url+'" target="_blank">'+s.label+'</a>';
+  });
+  html += '</div>';
+
+  body.innerHTML = html;
+  overlay.classList.add('active');
+  document.body.style.overflow = 'hidden';
+
+  // Zoom map
+  if (city._marker && city._map) {
+    city._map.setView([city.lat, city.lng], 10);
+  }
 }
+
+function closeModal() {
+  document.getElementById('modalOverlay').classList.remove('active');
+  document.body.style.overflow = '';
+}
+
+// Close on overlay click or Escape
+document.addEventListener('click', function(e) {
+  if (e.target.id === 'modalOverlay') closeModal();
+});
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') closeModal();
+});
+
+// ===== FILTERS =====
+document.addEventListener('DOMContentLoaded', function() {
+  document.getElementById('filterTabs').addEventListener('click', function(e) {
+    const tab = e.target.closest('.filter-tab');
+    if (!tab) return;
+    document.querySelectorAll('.filter-tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    renderTiles(tab.dataset.filter);
+  });
+});
 
 // ===== SEARCH =====
 function setupSearch() {
   const input = document.getElementById('citySearch');
   const results = document.getElementById('searchResults');
-
   input.addEventListener('input', function() {
     const q = this.value.toLowerCase().trim();
     if (q.length < 2) { results.classList.remove('active'); return; }
-    const matches = CITIES_DATA.filter(c =>
-      c.name.toLowerCase().includes(q) || c.dept.toLowerCase().includes(q)
-    );
-    if (matches.length === 0) { results.classList.remove('active'); return; }
+    const matches = CITIES.filter(c => c.name.toLowerCase().includes(q) || c.dept.toLowerCase().includes(q));
+    if (!matches.length) { results.classList.remove('active'); return; }
     results.innerHTML = '';
     matches.forEach(city => {
       const item = document.createElement('div');
       item.className = 'search-result-item';
-      item.innerHTML = '<span class="city-n">' + city.name + '</span> <span class="city-dept">— ' + city.dept + '</span>';
+      item.innerHTML = '<span class="city-n">'+city.name+'</span> <span class="city-dept">— '+city.dept+'</span>';
       item.addEventListener('click', () => {
-        // Scroll to card
-        const card = document.getElementById('card-' + city.id);
-        if (card) card.scrollIntoView({behavior:'smooth', block:'center'});
-        // Open popup on map
-        if (city._marker && city._map) {
-          city._map.setView([city.lat, city.lng], 10);
-          city._marker.openPopup();
-        }
-        // Highlight card
-        if (card) {
-          card.style.boxShadow = '0 0 0 3px var(--accent)';
-          setTimeout(() => card.style.boxShadow = '', 3000);
-        }
+        openModal(city.id);
         results.classList.remove('active');
         input.value = city.name;
       });
@@ -904,7 +890,6 @@ function setupSearch() {
     });
     results.classList.add('active');
   });
-
   document.addEventListener('click', function(e) {
     if (!e.target.closest('.search-container')) results.classList.remove('active');
   });
@@ -913,11 +898,10 @@ function setupSearch() {
 // ===== INIT =====
 document.addEventListener('DOMContentLoaded', function() {
   initMap();
-  renderCities('all');
+  renderTiles('all');
   setupSearch();
   setupAutoRefresh();
 });
 </script>
-
 </body>
 </html>
