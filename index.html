@@ -5,7 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Municipales 2026 — Résultats en direct</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
   <style>
     :root {
       --ps: #FF6B6B; --lfi: #9B59B6; --pcf: #D32F2F; --eco: #4CAF50;
@@ -84,6 +87,20 @@
 
     /* MAP */
     #map { width: 100%; height: 55vh; min-height: 350px; border-bottom: 1px solid var(--border); }
+    .marker-cluster {
+      background: rgba(56,189,248,0.25) !important;
+    }
+    .marker-cluster div {
+      background: rgba(56,189,248,0.7) !important;
+      color: #fff !important; font-weight: 700 !important;
+      font-size: 0.8rem !important;
+    }
+    .marker-cluster-small { background: rgba(56,189,248,0.2) !important; }
+    .marker-cluster-small div { background: rgba(56,189,248,0.6) !important; }
+    .marker-cluster-medium { background: rgba(129,140,248,0.25) !important; }
+    .marker-cluster-medium div { background: rgba(129,140,248,0.7) !important; }
+    .marker-cluster-large { background: rgba(239,68,68,0.25) !important; }
+    .marker-cluster-large div { background: rgba(239,68,68,0.7) !important; }
     .leaflet-popup-content-wrapper {
       background: var(--surface) !important; color: var(--text) !important;
       border-radius: 12px !important; border: 1px solid var(--border) !important;
@@ -705,22 +722,59 @@ async function tryFetchOpenData() {
 }
 
 // ===== MAP =====
+let MAP, CLUSTER_GROUP;
+const BORD_COLORS = {gauche:'#FF6B6B',droite:'#1976D2',centre:'#FF9800',rn:'#37474F',eco:'#4CAF50',lfi:'#9B59B6',indecis:'#90A4AE'};
+
 function initMap() {
-  const map = L.map('map', {center:[46.6,2.5], zoom:6, scrollWheelZoom:true});
+  MAP = L.map('map', {center:[46.6,2.5], zoom:6, scrollWheelZoom:true});
   L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
     attribution:'&copy; OpenStreetMap &copy; CARTO', maxZoom:19
-  }).addTo(map);
-  const bc = {gauche:'#FF6B6B',droite:'#1976D2',centre:'#FF9800',rn:'#37474F',eco:'#4CAF50',lfi:'#9B59B6',indecis:'#90A4AE'};
+  }).addTo(MAP);
+
+  CLUSTER_GROUP = L.markerClusterGroup({
+    maxClusterRadius: 45,
+    spiderfyOnMaxZoom: true,
+    showCoverageOnHover: false,
+    zoomToBoundsOnClick: true,
+    iconCreateFunction: function(cluster) {
+      const count = cluster.getChildCount();
+      let size = 'small';
+      if (count >= 10) size = 'large';
+      else if (count >= 5) size = 'medium';
+      return L.divIcon({
+        html: '<div>' + count + '</div>',
+        className: 'marker-cluster marker-cluster-' + size,
+        iconSize: L.point(40, 40)
+      });
+    }
+  });
+
   CITIES.forEach(city => {
-    const c = bc[city.bord] || '#90A4AE';
+    const c = BORD_COLORS[city.bord] || '#90A4AE';
     const mk = L.circleMarker([city.lat,city.lng], {
       radius: Math.max(8, Math.min(16, city.candidats.length*3+4)),
       fillColor:c, fillOpacity:0.85, color:'#fff', weight:2
-    }).addTo(map);
+    });
     mk.on('click', () => openModal(city.id));
     mk.on('mouseover', function(){ this.setStyle({weight:3,fillOpacity:1}); });
     mk.on('mouseout', function(){ this.setStyle({weight:2,fillOpacity:0.85}); });
-    city._marker = mk; city._map = map;
+    city._marker = mk; city._map = MAP;
+    CLUSTER_GROUP.addLayer(mk);
+  });
+
+  MAP.addLayer(CLUSTER_GROUP);
+}
+
+function filterMap(filter) {
+  CLUSTER_GROUP.clearLayers();
+  let list = CITIES;
+  if (filter && filter !== 'all') {
+    if (filter === '2t') list = CITIES.filter(c => c.status === '2t');
+    else if (filter === 'elu') list = CITIES.filter(c => c.status === 'elu');
+    else list = CITIES.filter(c => c.tags.includes(filter));
+  }
+  list.forEach(city => {
+    if (city._marker) CLUSTER_GROUP.addLayer(city._marker);
   });
 }
 
@@ -838,8 +892,10 @@ function openModal(cityId) {
   document.body.style.overflow = 'hidden';
 
   // Zoom map
-  if (city._marker && city._map) {
-    city._map.setView([city.lat, city.lng], 10);
+  if (city._marker && MAP) {
+    MAP.setView([city.lat, city.lng], 10);
+    // Spiderfy cluster if needed, then open marker
+    CLUSTER_GROUP.zoomToShowLayer(city._marker, function() {});
   }
 }
 
@@ -863,7 +919,9 @@ document.addEventListener('DOMContentLoaded', function() {
     if (!tab) return;
     document.querySelectorAll('.filter-tab').forEach(t => t.classList.remove('active'));
     tab.classList.add('active');
-    renderTiles(tab.dataset.filter);
+    const f = tab.dataset.filter;
+    renderTiles(f);
+    filterMap(f);
   });
 });
 
