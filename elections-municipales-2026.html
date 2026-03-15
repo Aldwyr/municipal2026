@@ -1,0 +1,1023 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Élections Municipales 2026 — Résultats</title>
+  <style>
+    :root {
+      --gauche: #e74c3c;
+      --droite: #2980b9;
+      --centre: #f39c12;
+      --rn: #2c3e50;
+      --eco: #27ae60;
+      --lfi: #8e44ad;
+      --bg: #f4f6f9;
+      --card: #ffffff;
+      --text: #2c3e50;
+      --border: #dde1e7;
+      --header-bg: #1a1f36;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+    }
+
+    header {
+      background: var(--header-bg);
+      color: #fff;
+      padding: 1.5rem 2rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+
+    header h1 {
+      font-size: 1.6rem;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+    }
+
+    header .meta {
+      font-size: 0.85rem;
+      opacity: 0.75;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 0.25rem 0.75rem;
+      border-radius: 999px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .badge-live { background: #e74c3c; color: #fff; }
+    .badge-tour { background: #f39c12; color: #fff; }
+    .badge-elu  { background: #27ae60; color: #fff; }
+    .badge-ballotage { background: #7f8c8d; color: #fff; }
+
+    /* Parti colors */
+    .parti-PS    { color: #e74c3c; font-weight: 700; }
+    .parti-LFI   { color: #8e44ad; font-weight: 700; }
+    .parti-PCF   { color: #c0392b; font-weight: 700; }
+    .parti-ECO   { color: #27ae60; font-weight: 700; }
+    .parti-LR    { color: #2980b9; font-weight: 700; }
+    .parti-RN    { color: #2c3e50; font-weight: 700; }
+    .parti-HOR   { color: #f39c12; font-weight: 700; }
+    .parti-UDR   { color: #16a085; font-weight: 700; }
+    .parti-DIV   { color: #7f8c8d; font-weight: 700; }
+    .parti-DVG   { color: #e74c3c; font-weight: 700; }
+    .parti-DVD   { color: #2980b9; font-weight: 700; }
+    .parti-REC   { color: #6c3483; font-weight: 700; }
+
+    .container { max-width: 1300px; margin: 0 auto; padding: 2rem 1rem; }
+
+    /* Stats banner */
+    .stats-banner {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+
+    .stat-card {
+      background: var(--card);
+      border-radius: 12px;
+      padding: 1.25rem;
+      text-align: center;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+      border: 1px solid var(--border);
+    }
+
+    .stat-card .value {
+      font-size: 2rem;
+      font-weight: 800;
+      color: var(--header-bg);
+    }
+
+    .stat-card .label {
+      font-size: 0.8rem;
+      color: #7f8c8d;
+      margin-top: 0.25rem;
+    }
+
+    /* Participation bar */
+    .participation-section {
+      background: var(--card);
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin-bottom: 2rem;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+      border: 1px solid var(--border);
+    }
+
+    .participation-section h2 {
+      margin-bottom: 1rem;
+      font-size: 1.1rem;
+    }
+
+    .part-bar-wrap {
+      display: grid;
+      grid-template-columns: 130px 1fr 60px;
+      align-items: center;
+      gap: 0.75rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .part-bar-wrap .city-name { font-size: 0.85rem; font-weight: 600; }
+
+    .part-bar-bg {
+      background: #ecf0f1;
+      border-radius: 999px;
+      height: 12px;
+      overflow: hidden;
+    }
+
+    .part-bar-fill {
+      height: 100%;
+      border-radius: 999px;
+      background: linear-gradient(90deg, #3498db, #2980b9);
+    }
+
+    .part-pct { font-size: 0.85rem; font-weight: 700; color: #2980b9; }
+
+    /* Cities grid */
+    .section-title {
+      font-size: 1.3rem;
+      font-weight: 700;
+      margin-bottom: 1.25rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 2px solid var(--border);
+    }
+
+    .cities-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+      gap: 1.25rem;
+      margin-bottom: 2.5rem;
+    }
+
+    .city-card {
+      background: var(--card);
+      border-radius: 14px;
+      padding: 1.5rem;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+      border: 1px solid var(--border);
+      border-top: 4px solid #ccc;
+    }
+
+    .city-card.bord-gauche   { border-top-color: #e74c3c; }
+    .city-card.bord-droite   { border-top-color: #2980b9; }
+    .city-card.bord-centre   { border-top-color: #f39c12; }
+    .city-card.bord-rn       { border-top-color: #2c3e50; }
+    .city-card.bord-eco      { border-top-color: #27ae60; }
+    .city-card.bord-lfi      { border-top-color: #8e44ad; }
+    .city-card.bord-indecis  { border-top-color: #95a5a6; }
+
+    .city-card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 1rem;
+    }
+
+    .city-name-big { font-size: 1.2rem; font-weight: 800; }
+    .city-pop      { font-size: 0.78rem; color: #7f8c8d; }
+
+    .candidates-list { list-style: none; margin-top: 0.75rem; }
+
+    .candidates-list li {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.4rem 0;
+      border-bottom: 1px solid #f0f0f0;
+      font-size: 0.88rem;
+    }
+
+    .candidates-list li:last-child { border-bottom: none; }
+
+    .cand-score {
+      font-size: 1rem;
+      font-weight: 800;
+      min-width: 48px;
+      text-align: right;
+    }
+
+    .cand-bar-wrap {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .cand-name { font-weight: 600; font-size: 0.85rem; }
+    .cand-parti { font-size: 0.75rem; }
+
+    .cand-bar-bg {
+      background: #ecf0f1;
+      border-radius: 999px;
+      height: 6px;
+      margin-top: 3px;
+      overflow: hidden;
+    }
+
+    .cand-bar-fill { height: 100%; border-radius: 999px; }
+
+    .bar-gauche  { background: #e74c3c; }
+    .bar-droite  { background: #2980b9; }
+    .bar-centre  { background: #f39c12; }
+    .bar-rn      { background: #2c3e50; }
+    .bar-eco     { background: #27ae60; }
+    .bar-lfi     { background: #8e44ad; }
+    .bar-div     { background: #95a5a6; }
+
+    /* Legend */
+    .legend {
+      background: var(--card);
+      border-radius: 12px;
+      padding: 1.25rem;
+      margin-bottom: 2rem;
+      border: 1px solid var(--border);
+    }
+
+    .legend h3 { margin-bottom: 0.75rem; font-size: 1rem; }
+
+    .legend-items {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-size: 0.82rem;
+    }
+
+    .legend-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+    }
+
+    /* Alliance section */
+    .alliances-section {
+      background: var(--card);
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin-bottom: 2rem;
+      border: 1px solid var(--border);
+      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+    }
+
+    .alliances-section h2 { margin-bottom: 1rem; font-size: 1.1rem; }
+
+    .alliance-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 1rem;
+    }
+
+    .alliance-card {
+      border-radius: 10px;
+      padding: 1rem;
+      border: 1px solid var(--border);
+      background: #f8f9fa;
+    }
+
+    .alliance-card h4 { margin-bottom: 0.5rem; font-size: 0.9rem; }
+    .alliance-card p  { font-size: 0.82rem; color: #555; line-height: 1.5; }
+
+    /* Opinion poll */
+    .sondage-section {
+      background: var(--card);
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin-bottom: 2rem;
+      border: 1px solid var(--border);
+      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+    }
+
+    .sondage-section h2 { margin-bottom: 1rem; font-size: 1.1rem; }
+
+    .sondage-item {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      margin-bottom: 0.6rem;
+      font-size: 0.87rem;
+    }
+
+    .sondage-label { min-width: 200px; font-weight: 600; }
+
+    .sondage-bar-bg {
+      flex: 1;
+      background: #ecf0f1;
+      border-radius: 999px;
+      height: 10px;
+      overflow: hidden;
+    }
+
+    .sondage-bar-fill { height: 100%; border-radius: 999px; }
+
+    .sondage-pct { min-width: 40px; font-weight: 700; text-align: right; }
+
+    /* Footer */
+    footer {
+      background: var(--header-bg);
+      color: rgba(255,255,255,0.6);
+      text-align: center;
+      font-size: 0.78rem;
+      padding: 1.25rem;
+    }
+
+    footer a { color: rgba(255,255,255,0.8); text-decoration: none; }
+    footer a:hover { text-decoration: underline; }
+
+    /* Updated stamp */
+    .update-stamp {
+      font-size: 0.78rem;
+      color: #7f8c8d;
+      text-align: right;
+      margin-bottom: 1rem;
+    }
+
+    @media (max-width: 600px) {
+      header h1 { font-size: 1.2rem; }
+      .cities-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>🗳️ Élections Municipales France 2026</h1>
+    <div class="meta">1<sup>er</sup> Tour — Dimanche 15 mars 2026 &nbsp;|&nbsp; 2<sup>e</sup> Tour — Dimanche 22 mars 2026</div>
+  </div>
+  <div>
+    <span class="badge badge-live">En direct</span>&nbsp;
+    <span class="badge badge-tour">1<sup>er</sup> Tour</span>
+  </div>
+</header>
+
+<div class="container">
+
+  <div class="update-stamp">Dernière mise à jour : dimanche 15 mars 2026 — soirée électorale</div>
+
+  <!-- Statistiques nationales -->
+  <div class="stats-banner">
+    <div class="stat-card">
+      <div class="value">56 %</div>
+      <div class="label">Participation (estimation finale)</div>
+    </div>
+    <div class="stat-card">
+      <div class="value">+17 pts</div>
+      <div class="label">vs 2020 (38,8 %)</div>
+    </div>
+    <div class="stat-card">
+      <div class="value">48,7 M</div>
+      <div class="label">Électeurs inscrits</div>
+    </div>
+    <div class="stat-card">
+      <div class="value">34 875</div>
+      <div class="label">Communes concernées</div>
+    </div>
+    <div class="stat-card">
+      <div class="value">904 042</div>
+      <div class="label">Candidats</div>
+    </div>
+    <div class="stat-card">
+      <div class="value">50 478</div>
+      <div class="label">Listes déposées</div>
+    </div>
+  </div>
+
+  <!-- Participation par ville -->
+  <div class="participation-section">
+    <h2>📊 Participation par ville (1<sup>er</sup> tour)</h2>
+    <div>
+      <div class="part-bar-wrap"><span class="city-name">Lyon</span><div class="part-bar-bg"><div class="part-bar-fill" style="width:63.9%"></div></div><span class="part-pct">63,9 %</span></div>
+      <div class="part-bar-wrap"><span class="city-name">Nantes</span><div class="part-bar-bg"><div class="part-bar-fill" style="width:59.9%"></div></div><span class="part-pct">59,9 %</span></div>
+      <div class="part-bar-wrap"><span class="city-name">Bordeaux</span><div class="part-bar-bg"><div class="part-bar-fill" style="width:57.7%"></div></div><span class="part-pct">57,7 %</span></div>
+      <div class="part-bar-wrap"><span class="city-name">Strasbourg</span><div class="part-bar-bg"><div class="part-bar-fill" style="width:56.9%"></div></div><span class="part-pct">56,9 %</span></div>
+      <div class="part-bar-wrap"><span class="city-name">Toulouse</span><div class="part-bar-bg"><div class="part-bar-fill" style="width:56.5%"></div></div><span class="part-pct">56,5 %</span></div>
+      <div class="part-bar-wrap"><span class="city-name">Nationale (estim.)</span><div class="part-bar-bg"><div class="part-bar-fill" style="width:56%"></div></div><span class="part-pct">56,0 %</span></div>
+      <div class="part-bar-wrap"><span class="city-name">Montpellier</span><div class="part-bar-bg"><div class="part-bar-fill" style="width:46.6%"></div></div><span class="part-pct">~46,6 %</span></div>
+    </div>
+  </div>
+
+  <!-- Légende partis -->
+  <div class="legend">
+    <h3>🎨 Légende — Partis &amp; bords politiques</h3>
+    <div class="legend-items">
+      <div class="legend-item"><div class="legend-dot" style="background:#e74c3c"></div><strong>PS</strong> — Parti Socialiste (Gauche)</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#8e44ad"></div><strong>LFI</strong> — La France Insoumise (Gauche radicale)</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#c0392b"></div><strong>PCF</strong> — Parti Communiste Français (Gauche)</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#27ae60"></div><strong>EELV/Éco</strong> — Écologistes (Centre-gauche)</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#2980b9"></div><strong>LR</strong> — Les Républicains (Droite)</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#f39c12"></div><strong>Horizons/RE/MoDem</strong> — Macronie (Centre)</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#2c3e50"></div><strong>RN</strong> — Rassemblement National (Extrême droite)</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#16a085"></div><strong>UDR</strong> — Union des Droites pour la République (Droite souverainiste, allié RN)</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#6c3483"></div><strong>Reconquête</strong> — Reconquête (Extrême droite)</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#95a5a6"></div><strong>DVG/DVD/DIV</strong> — Divers gauche / droite / centre</div>
+    </div>
+  </div>
+
+  <!-- Résultats par ville -->
+  <h2 class="section-title">🏙️ Résultats des principales villes</h2>
+
+  <div class="cities-grid">
+
+    <!-- PARIS -->
+    <div class="city-card bord-gauche">
+      <div class="city-card-header">
+        <div>
+          <div class="city-name-big">Paris 🗼</div>
+          <div class="city-pop">2,1 M hab. — Capitale</div>
+        </div>
+        <span class="badge badge-ballotage">2<sup>e</sup> tour</span>
+      </div>
+      <div style="font-size:0.8rem;color:#555;margin-bottom:0.5rem;">Maire sortant : Anne Hidalgo (PS)</div>
+      <ul class="candidates-list">
+        <li>
+          <div class="cand-bar-wrap">
+            <div class="cand-name">Emmanuel Grégoire</div>
+            <div class="cand-parti parti-PS">PS (Gauche)</div>
+            <div class="cand-bar-bg"><div class="cand-bar-fill bar-gauche" style="width:100%"></div></div>
+          </div>
+          <div class="cand-score" style="color:#e74c3c">36,5 %</div>
+        </li>
+        <li>
+          <div class="cand-bar-wrap">
+            <div class="cand-name">Rachida Dati</div>
+            <div class="cand-parti parti-LR">LR (Droite)</div>
+            <div class="cand-bar-bg"><div class="cand-bar-fill bar-droite" style="width:68%"></div></div>
+          </div>
+          <div class="cand-score" style="color:#2980b9">24,9 %</div>
+        </li>
+        <li>
+          <div class="cand-bar-wrap">
+            <div class="cand-name">Sophia Chikirou</div>
+            <div class="cand-parti parti-LFI">LFI (Gauche radicale)</div>
+            <div class="cand-bar-bg"><div class="cand-bar-fill bar-lfi" style="width:37%"></div></div>
+          </div>
+          <div class="cand-score" style="color:#8e44ad">13,7 %</div>
+        </li>
+        <li>
+          <div class="cand-bar-wrap">
+            <div class="cand-name">Pierre-Yves Bournazel</div>
+            <div class="cand-parti parti-HOR">Horizons (Centre)</div>
+            <div class="cand-bar-bg"><div class="cand-bar-fill bar-centre" style="width:32%"></div></div>
+          </div>
+          <div class="cand-score" style="color:#f39c12">11,8 %</div>
+        </li>
+        <li>
+          <div class="cand-bar-wrap">
+            <div class="cand-name">Sarah Knafo</div>
+            <div class="cand-parti parti-REC">Reconquête (Extrême droite)</div>
+            <div class="cand-bar-bg"><div class="cand-bar-fill bar-div" style="width:25%"></div></div>
+          </div>
+          <div class="cand-score" style="color:#6c3483">~9 %</div>
+        </li>
+      </ul>
+      <div style="font-size:0.75rem;color:#7f8c8d;margin-top:0.75rem;">⚠️ Quinquangulaire inédite — second tour le 22 mars</div>
+    </div>
+
+    <!-- MARSEILLE -->
+    <div class="city-card bord-indecis">
+      <div class="city-card-header">
+        <div>
+          <div class="city-name-big">Marseille ⚓</div>
+          <div class="city-pop">873 000 hab. — Bouches-du-Rhône</div>
+        </div>
+        <span class="badge badge-ballotage">2<sup>e</sup> tour</span>
+      </div>
+      <div style="font-size:0.8rem;color:#555;margin-bottom:0.5rem;">Maire sortant : Benoît Payan (PS)</div>
+      <ul class="candidates-list">
+        <li>
+          <div class="cand-bar-wrap">
+            <div class="cand-name">Benoît Payan</div>
+            <div class="cand-parti parti-PS">PS-PCF-Éco-DVG (Gauche)</div>
+            <div class="cand-bar-bg"><div class="cand-bar-fill bar-gauche" style="width:100%"></div></div>
+          </div>
+          <div class="cand-score" style="color:#e74c3c">34,5 %</div>
+        </li>
+        <li>
+          <div class="cand-bar-wrap">
+            <div class="cand-name">Franck Allisio</div>
+            <div class="cand-parti parti-RN">RN (Extrême droite)</div>
+            <div class="cand-bar-bg"><div class="cand-bar-fill bar-rn" style="width:100%"></div></div>
+          </div>
+          <div class="cand-score" style="color:#2c3e50">34,5 %</div>
+        </li>
+        <li>
+          <div class="cand-bar-wrap">
+            <div class="cand-name">Martine Vassal</div>
+            <div class="cand-parti parti-LR">DVD-LR-RE-Hor-MoDem (Droite-Centre)</div>
+            <div class="cand-bar-bg"><div class="cand-bar-fill bar-droite" style="width:55%"></div></div>
+          </div>
+          <div class="cand-score" style="color:#2980b9">~19 %</div>
+        </li>
+        <li>
+          <div class="cand-bar-wrap">
+            <div class="cand-name">Sébastien Delogu</div>
+            <div class="cand-parti parti-LFI">LFI (Gauche radicale)</div>
+            <div class="cand-bar-bg"><div class="cand-bar-fill bar-lfi" style="width:30%"></div></div>
+          </div>
+          <div class="cand-score" style="color:#8e44ad">~10 %</div>
+        </li>
+      </ul>
+      <div style="font-size:0.75rem;color:#e74c3c;margin-top:0.75rem;">🔥 Payan et Allisio à égalité — duel serré annoncé le 22 mars</div>
+    </div>
+
+    <!-- NICE -->
+    <div class="city-card bord-rn">
+      <div class="city-card-header">
+        <div>
+          <div class="city-name-big">Nice 🏖️</div>
+          <div class="city-pop">342 000 hab. — Alpes-Maritimes</div>
+        </div>
+        <span class="badge badge-ballotage">2<sup>e</sup> tour</span>
+      </div>
+      <div style="font-size:0.8rem;color:#555;margin-bottom:0.5rem;">Maire sortant : Christian Estrosi (Horizons)</div>
+      <ul class="candidates-list">
+        <li>
+          <div class="cand-bar-wrap">
+            <div class="cand-name">Éric Ciotti</div>
+            <div class="cand-parti parti-UDR">UDR (allié RN — Droite souverainiste)</div>
+            <div class="cand-bar-bg"><div class="cand-bar-fill bar-rn" style="width:100%"></div></div>
+          </div>
+          <div class="cand-score" style="color:#16a085">41,9 %</div>
+        </li>
+        <li>
+          <div class="cand-bar-wrap">
+            <div class="cand-name">Christian Estrosi</div>
+            <div class="cand-parti parti-HOR">Horizons (Centre-droit)</div>
+            <div class="cand-bar-bg"><div class="cand-bar-fill bar-centre" style="width:74%"></div></div>
+          </div>
+          <div class="cand-score" style="color:#f39c12">31,0 %</div>
+        </li>
+        <li>
+          <div class="cand-bar-wrap">
+            <div class="cand-name">Juliette Chesnel-Le Roux</div>
+            <div class="cand-parti parti-PS">Gauche unie</div>
+            <div class="cand-bar-bg"><div class="cand-bar-fill bar-gauche" style="width:29%"></div></div>
+          </div>
+          <div class="cand-score" style="color:#e74c3c">12,2 %</div>
+        </li>
+      </ul>
+      <div style="font-size:0.75rem;color:#16a085;margin-top:0.75rem;">⚡ Ciotti devance Estrosi — duel droite vs droite souverainiste</div>
+    </div>
+
+    <!-- TOULON -->
+    <div class="city-card bord-rn">
+      <div class="city-card-header">
+        <div>
+          <div class="city-name-big">Toulon ⚓</div>
+          <div class="city-pop">176 000 hab. — Var</div>
+        </div>
+        <span class="badge badge-ballotage">2<sup>e</sup> tour</span>
+      </div>
+      <div style="font-size:0.8rem;color:#555;margin-bottom:0.5rem;">Maire sortant : Hubert Falco (DVD)</div>
+      <ul class="candidates-list">
+        <li>
+          <div class="cand-bar-wrap">
+            <div class="cand-name">Laure Lavalette</div>
+            <div class="cand-parti parti-RN">RN (Extrême droite)</div>
+            <div class="cand-bar-bg"><div class="cand-bar-fill bar-rn" style="width:100%"></div></div>
+          </div>
+          <div class="cand-score" style="color:#2c3e50">42,0 %</div>
+        </li>
+      </ul>
+      <div style="font-size:0.75rem;color:#2c3e50;margin-top:0.75rem;">🔵 RN en position dominante — résultats complets en attente</div>
+    </div>
+
+    <!-- LE HAVRE -->
+    <div class="city-card bord-centre">
+      <div class="city-card-header">
+        <div>
+          <div class="city-name-big">Le Havre 🚢</div>
+          <div class="city-pop">172 000 hab. — Seine-Maritime</div>
+        </div>
+        <span class="badge badge-ballotage">2<sup>e</sup> tour</span>
+      </div>
+      <div style="font-size:0.8rem;color:#555;margin-bottom:0.5rem;">Maire sortant : Édouard Philippe (Horizons)</div>
+      <ul class="candidates-list">
+        <li>
+          <div class="cand-bar-wrap">
+            <div class="cand-name">Édouard Philippe</div>
+            <div class="cand-parti parti-HOR">Horizons (Centre)</div>
+            <div class="cand-bar-bg"><div class="cand-bar-fill bar-centre" style="width:100%"></div></div>
+          </div>
+          <div class="cand-score" style="color:#f39c12">43,8 %</div>
+        </li>
+        <li>
+          <div class="cand-bar-wrap">
+            <div class="cand-name">Jean-Paul Lecoq</div>
+            <div class="cand-parti parti-PCF">PCF (Gauche)</div>
+            <div class="cand-bar-bg"><div class="cand-bar-fill bar-gauche" style="width:75%"></div></div>
+          </div>
+          <div class="cand-score" style="color:#c0392b">~33 %</div>
+        </li>
+        <li>
+          <div class="cand-bar-wrap">
+            <div class="cand-name">Franck Keller</div>
+            <div class="cand-parti parti-UDR">UDR/RN</div>
+            <div class="cand-bar-bg"><div class="cand-bar-fill bar-rn" style="width:34%"></div></div>
+          </div>
+          <div class="cand-score" style="color:#2c3e50">~15 %</div>
+        </li>
+      </ul>
+      <div style="font-size:0.75rem;color:#f39c12;margin-top:0.75rem;">✅ Philippe largement en tête — même score qu'en 2020</div>
+    </div>
+
+    <!-- PERPIGNAN -->
+    <div class="city-card bord-rn">
+      <div class="city-card-header">
+        <div>
+          <div class="city-name-big">Perpignan 🌹</div>
+          <div class="city-pop">120 000 hab. — Pyrénées-Orientales</div>
+        </div>
+        <span class="badge badge-elu">Élu dès le 1<sup>er</sup> tour</span>
+      </div>
+      <div style="font-size:0.8rem;color:#555;margin-bottom:0.5rem;">Maire sortant : Louis Aliot (RN)</div>
+      <ul class="candidates-list">
+        <li>
+          <div class="cand-bar-wrap">
+            <div class="cand-name">Louis Aliot ✅</div>
+            <div class="cand-parti parti-RN">RN (Extrême droite) — réélu</div>
+            <div class="cand-bar-bg"><div class="cand-bar-fill bar-rn" style="width:100%"></div></div>
+          </div>
+          <div class="cand-score" style="color:#2c3e50">51,4 %</div>
+        </li>
+      </ul>
+      <div style="font-size:0.75rem;color:#27ae60;margin-top:0.75rem;">✅ Réélu dès le 1<sup>er</sup> tour à la majorité absolue</div>
+    </div>
+
+    <!-- HÉNIN-BEAUMONT -->
+    <div class="city-card bord-rn">
+      <div class="city-card-header">
+        <div>
+          <div class="city-name-big">Hénin-Beaumont ⛏️</div>
+          <div class="city-pop">26 000 hab. — Pas-de-Calais</div>
+        </div>
+        <span class="badge badge-elu">Élu dès le 1<sup>er</sup> tour</span>
+      </div>
+      <div style="font-size:0.8rem;color:#555;margin-bottom:0.5rem;">Maire sortant : Steeve Briois (RN)</div>
+      <ul class="candidates-list">
+        <li>
+          <div class="cand-bar-wrap">
+            <div class="cand-name">Steeve Briois ✅</div>
+            <div class="cand-parti parti-RN">RN (Extrême droite) — réélu</div>
+            <div class="cand-bar-bg"><div class="cand-bar-fill bar-rn" style="width:100%"></div></div>
+          </div>
+          <div class="cand-score" style="color:#2c3e50">78,3 %</div>
+        </li>
+      </ul>
+      <div style="font-size:0.75rem;color:#27ae60;margin-top:0.75rem;">✅ Victoire écrasante dès le 1<sup>er</sup> tour</div>
+    </div>
+
+    <!-- LILLE -->
+    <div class="city-card bord-gauche">
+      <div class="city-card-header">
+        <div>
+          <div class="city-name-big">Lille 🌹</div>
+          <div class="city-pop">234 000 hab. — Nord</div>
+        </div>
+        <span class="badge badge-ballotage">2<sup>e</sup> tour</span>
+      </div>
+      <div style="font-size:0.8rem;color:#555;margin-bottom:0.5rem;">Maire sortant : Martine Aubry (PS) → successeur Arnaud Deslandes</div>
+      <ul class="candidates-list">
+        <li>
+          <div class="cand-bar-wrap">
+            <div class="cand-name">Arnaud Deslandes</div>
+            <div class="cand-parti parti-PS">PS (Gauche)</div>
+            <div class="cand-bar-bg"><div class="cand-bar-fill bar-gauche" style="width:100%"></div></div>
+          </div>
+          <div class="cand-score" style="color:#e74c3c">26,0 %</div>
+        </li>
+        <li>
+          <div class="cand-bar-wrap">
+            <div class="cand-name">Lahouaria Addouche</div>
+            <div class="cand-parti parti-LFI">LFI (Gauche radicale)</div>
+            <div class="cand-bar-bg"><div class="cand-bar-fill bar-lfi" style="width:96%"></div></div>
+          </div>
+          <div class="cand-score" style="color:#8e44ad">25,0 %</div>
+        </li>
+      </ul>
+      <div style="font-size:0.75rem;color:#7f8c8d;margin-top:0.75rem;">⚖️ Résultat serré — les écologistes en position d'arbitre</div>
+    </div>
+
+    <!-- STRASBOURG -->
+    <div class="city-card bord-gauche">
+      <div class="city-card-header">
+        <div>
+          <div class="city-name-big">Strasbourg 🥨</div>
+          <div class="city-pop">285 000 hab. — Bas-Rhin</div>
+        </div>
+        <span class="badge badge-ballotage">2<sup>e</sup> tour</span>
+      </div>
+      <div style="font-size:0.8rem;color:#555;margin-bottom:0.5rem;">Maire sortante : Jeanne Barseghian (EELV)</div>
+      <ul class="candidates-list">
+        <li>
+          <div class="cand-bar-wrap">
+            <div class="cand-name">Catherine Trautmann</div>
+            <div class="cand-parti parti-PS">PS (Gauche)</div>
+            <div class="cand-bar-bg"><div class="cand-bar-fill bar-gauche" style="width:100%"></div></div>
+          </div>
+          <div class="cand-score" style="color:#e74c3c">31,0 %</div>
+        </li>
+        <li>
+          <div class="cand-bar-wrap">
+            <div class="cand-name">Jeanne Barseghian</div>
+            <div class="cand-parti parti-ECO">EELV (Écologistes)</div>
+            <div class="cand-bar-bg"><div class="cand-bar-fill bar-eco" style="width:65%"></div></div>
+          </div>
+          <div class="cand-score" style="color:#27ae60">~20 %</div>
+        </li>
+      </ul>
+      <div style="font-size:0.75rem;color:#7f8c8d;margin-top:0.75rem;">⚖️ Trautmann devant la maire sortante — résultats complets en attente</div>
+    </div>
+
+    <!-- RENNES -->
+    <div class="city-card bord-gauche">
+      <div class="city-card-header">
+        <div>
+          <div class="city-name-big">Rennes 🦁</div>
+          <div class="city-pop">222 000 hab. — Ille-et-Vilaine</div>
+        </div>
+        <span class="badge badge-ballotage">2<sup>e</sup> tour</span>
+      </div>
+      <div style="font-size:0.8rem;color:#555;margin-bottom:0.5rem;">Maire sortante : Nathalie Appéré (PS)</div>
+      <ul class="candidates-list">
+        <li>
+          <div class="cand-bar-wrap">
+            <div class="cand-name">Nathalie Appéré</div>
+            <div class="cand-parti parti-PS">PS-EELV-PCF (Gauche)</div>
+            <div class="cand-bar-bg"><div class="cand-bar-fill bar-gauche" style="width:100%"></div></div>
+          </div>
+          <div class="cand-score" style="color:#e74c3c">34,1 %</div>
+        </li>
+        <li>
+          <div class="cand-bar-wrap">
+            <div class="cand-name">Charles Compagnon</div>
+            <div class="cand-parti parti-HOR">Horizons-RE-MoDem (Centre)</div>
+            <div class="cand-bar-bg"><div class="cand-bar-fill bar-centre" style="width:64%"></div></div>
+          </div>
+          <div class="cand-score" style="color:#f39c12">22,0 %</div>
+        </li>
+        <li>
+          <div class="cand-bar-wrap">
+            <div class="cand-name">Marie Mesmeur</div>
+            <div class="cand-parti parti-LFI">LFI (Gauche radicale)</div>
+            <div class="cand-bar-bg"><div class="cand-bar-fill bar-lfi" style="width:56%"></div></div>
+          </div>
+          <div class="cand-score" style="color:#8e44ad">19,1 %</div>
+        </li>
+      </ul>
+    </div>
+
+    <!-- NANTES -->
+    <div class="city-card bord-gauche">
+      <div class="city-card-header">
+        <div>
+          <div class="city-name-big">Nantes 🌿</div>
+          <div class="city-pop">314 000 hab. — Loire-Atlantique</div>
+        </div>
+        <span class="badge badge-ballotage">2<sup>e</sup> tour</span>
+      </div>
+      <div style="font-size:0.8rem;color:#555;margin-bottom:0.5rem;">Maire sortante : Johanna Rolland (PS)</div>
+      <ul class="candidates-list">
+        <li>
+          <div class="cand-bar-wrap">
+            <div class="cand-name">Johanna Rolland</div>
+            <div class="cand-parti parti-PS">PS (Gauche)</div>
+            <div class="cand-bar-bg"><div class="cand-bar-fill bar-gauche" style="width:100%"></div></div>
+          </div>
+          <div class="cand-score" style="color:#e74c3c">38,0 %</div>
+        </li>
+        <li>
+          <div class="cand-bar-wrap">
+            <div class="cand-name">Candidat droite-centre</div>
+            <div class="cand-parti parti-LR">Droite-Centre</div>
+            <div class="cand-bar-bg"><div class="cand-bar-fill bar-droite" style="width:82%"></div></div>
+          </div>
+          <div class="cand-score" style="color:#2980b9">31,0 %</div>
+        </li>
+      </ul>
+      <div style="font-size:0.75rem;color:#7f8c8d;margin-top:0.75rem;">📊 Participation : 59,9 % (sondages pré-scrutin)</div>
+    </div>
+
+    <!-- BORDEAUX -->
+    <div class="city-card bord-eco">
+      <div class="city-card-header">
+        <div>
+          <div class="city-name-big">Bordeaux 🍷</div>
+          <div class="city-pop">254 000 hab. — Gironde</div>
+        </div>
+        <span class="badge badge-ballotage">2<sup>e</sup> tour</span>
+      </div>
+      <div style="font-size:0.8rem;color:#555;margin-bottom:0.5rem;">Maire sortant : Pierre Hurmic (EELV)</div>
+      <ul class="candidates-list">
+        <li>
+          <div class="cand-bar-wrap">
+            <div class="cand-name">Pierre Hurmic</div>
+            <div class="cand-parti parti-ECO">EELV (Écologistes)</div>
+            <div class="cand-bar-bg"><div class="cand-bar-fill bar-eco" style="width:100%"></div></div>
+          </div>
+          <div class="cand-score" style="color:#27ae60">—</div>
+        </li>
+      </ul>
+      <div style="font-size:0.75rem;color:#7f8c8d;margin-top:0.75rem;">📊 Participation : 57,7 % — résultats détaillés en attente</div>
+    </div>
+
+    <!-- TOULOUSE -->
+    <div class="city-card bord-droite">
+      <div class="city-card-header">
+        <div>
+          <div class="city-name-big">Toulouse 🌹</div>
+          <div class="city-pop">479 000 hab. — Haute-Garonne</div>
+        </div>
+        <span class="badge badge-ballotage">2<sup>e</sup> tour</span>
+      </div>
+      <div style="font-size:0.8rem;color:#555;margin-bottom:0.5rem;">Maire sortant : Jean-Luc Moudenc (LR-Horizons)</div>
+      <ul class="candidates-list">
+        <li>
+          <div class="cand-bar-wrap">
+            <div class="cand-name">Jean-Luc Moudenc</div>
+            <div class="cand-parti parti-LR">LR-RE-Horizons (Droite-Centre)</div>
+            <div class="cand-bar-bg"><div class="cand-bar-fill bar-droite" style="width:100%"></div></div>
+          </div>
+          <div class="cand-score" style="color:#2980b9">—</div>
+        </li>
+        <li>
+          <div class="cand-bar-wrap">
+            <div class="cand-name">François Briançon</div>
+            <div class="cand-parti parti-PS">Union gauche (hors LFI)</div>
+            <div class="cand-bar-bg"><div class="cand-bar-fill bar-gauche" style="width:80%"></div></div>
+          </div>
+          <div class="cand-score" style="color:#e74c3c">—</div>
+        </li>
+        <li>
+          <div class="cand-bar-wrap">
+            <div class="cand-name">François Piquemal</div>
+            <div class="cand-parti parti-LFI">LFI (Gauche radicale)</div>
+            <div class="cand-bar-bg"><div class="cand-bar-fill bar-lfi" style="width:50%"></div></div>
+          </div>
+          <div class="cand-score" style="color:#8e44ad">—</div>
+        </li>
+      </ul>
+      <div style="font-size:0.75rem;color:#7f8c8d;margin-top:0.75rem;">⚖️ Piquemal peut jouer un rôle d'arbitre au 2<sup>e</sup> tour</div>
+    </div>
+
+    <!-- MONTPELLIER -->
+    <div class="city-card bord-gauche">
+      <div class="city-card-header">
+        <div>
+          <div class="city-name-big">Montpellier 🦁</div>
+          <div class="city-pop">285 000 hab. — Hérault</div>
+        </div>
+        <span class="badge badge-ballotage">2<sup>e</sup> tour</span>
+      </div>
+      <div style="font-size:0.8rem;color:#555;margin-bottom:0.5rem;">Maire sortant : Michaël Delafosse (PS)</div>
+      <ul class="candidates-list">
+        <li>
+          <div class="cand-bar-wrap">
+            <div class="cand-name">Michaël Delafosse</div>
+            <div class="cand-parti parti-PS">PS (Gauche)</div>
+            <div class="cand-bar-bg"><div class="cand-bar-fill bar-gauche" style="width:100%"></div></div>
+          </div>
+          <div class="cand-score" style="color:#e74c3c">—</div>
+        </li>
+      </ul>
+      <div style="font-size:0.75rem;color:#7f8c8d;margin-top:0.75rem;">⚠️ 13 listes dont 6 à gauche — situation morcelée</div>
+    </div>
+
+    <!-- GRENOBLE -->
+    <div class="city-card bord-gauche">
+      <div class="city-card-header">
+        <div>
+          <div class="city-name-big">Grenoble 🏔️</div>
+          <div class="city-pop">158 000 hab. — Isère</div>
+        </div>
+        <span class="badge badge-ballotage">2<sup>e</sup> tour</span>
+      </div>
+      <div style="font-size:0.8rem;color:#555;margin-bottom:0.5rem;">Maire sortant : Éric Piolle (EELV) — ne se représente pas</div>
+      <ul class="candidates-list">
+        <li>
+          <div class="cand-bar-wrap">
+            <div class="cand-name">Laurence Ruffin</div>
+            <div class="cand-parti parti-ECO">Union gauche hors LFI</div>
+            <div class="cand-bar-bg"><div class="cand-bar-fill bar-eco" style="width:100%"></div></div>
+          </div>
+          <div class="cand-score" style="color:#27ae60">—</div>
+        </li>
+        <li>
+          <div class="cand-bar-wrap">
+            <div class="cand-name">Alain Carignon</div>
+            <div class="cand-parti parti-LR">Droite-Macronie (Droite-Centre)</div>
+            <div class="cand-bar-bg"><div class="cand-bar-fill bar-droite" style="width:80%"></div></div>
+          </div>
+          <div class="cand-score" style="color:#2980b9">—</div>
+        </li>
+      </ul>
+      <div style="font-size:0.75rem;color:#7f8c8d;margin-top:0.75rem;">⚖️ Victoire de Ruffin pas acquise — résultats en attente</div>
+    </div>
+
+  </div><!-- end cities-grid -->
+
+  <!-- Alliances pour le 2e tour -->
+  <div class="alliances-section">
+    <h2>🤝 Alliances &amp; enjeux pour le 2<sup>e</sup> tour (22 mars)</h2>
+    <div class="alliance-grid">
+
+      <div class="alliance-card">
+        <h4 class="parti-PS">🌹 Gauche modérée (PS, PCF, EELV)</h4>
+        <p>Olivier Faure (PS) a exclu tout accord national avec LFI. Dans plusieurs villes, la question de la fusion avec les listes LFI se posera néanmoins localement — notamment à Lille, Paris et Marseille.</p>
+      </div>
+
+      <div class="alliance-card">
+        <h4 class="parti-LFI">🔴 LFI — isolation relative</h4>
+        <p>89 % des proches LFI souhaitent une union avec le PS, mais 75 % des Français y sont opposés. LFI peut se retrouver isolée au second tour dans certaines villes, à la fois face à la gauche et à la droite.</p>
+      </div>
+
+      <div class="alliance-card">
+        <h4 class="parti-RN">⬛ RN / UDR — dynamique forte</h4>
+        <p>Le RN s'appuie sur une forte dynamique nationale : Perpignan et Hénin-Beaumont élus dès le 1er tour, bon score à Toulon et Marseille. 78 % des proches RN sont favorables aux fusions avec LR au 2e tour.</p>
+      </div>
+
+      <div class="alliance-card">
+        <h4 class="parti-LR">🔵 LR / Horizons — front républicain ?</h4>
+        <p>64 % des proches LR sont favorables à des fusions avec RN et à 69 % avec Renaissance/Horizons. Les dynamiques locales primer sur les consignes nationales. Bruno Retailleau appelle à un "grand rassemblement de la droite".</p>
+      </div>
+
+      <div class="alliance-card">
+        <h4 class="parti-ECO">🌿 Écologistes — rôle d'arbitre</h4>
+        <p>À Lille, les écologistes sont en position d'arbitre entre PS et LFI. À Strasbourg, l'EELV est en recul. À Bordeaux et Grenoble, l'écologie résiste mais fait face à des droites mobilisées.</p>
+      </div>
+
+      <div class="alliance-card">
+        <h4>🗓️ Contexte — Test avant 2027</h4>
+        <p>Ces municipales sont un test grandeur nature à un an de la présidentielle 2027. La participation en hausse (+17 pts vs 2020) montre une remobilisation civique et politique des Français.</p>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Sondages opinion -->
+  <div class="sondage-section">
+    <h2>📈 Sondages — Attitudes envers les fusions de listes (2<sup>e</sup> tour)</h2>
+    <div>
+      <div class="sondage-item">
+        <span class="sondage-label parti-LFI">Proches LFI pro-union PS</span>
+        <div class="sondage-bar-bg"><div class="sondage-bar-fill" style="width:89%;background:#8e44ad"></div></div>
+        <span class="sondage-pct parti-LFI">89 %</span>
+      </div>
+      <div class="sondage-item">
+        <span class="sondage-label parti-RN">Proches RN pro-fusion LR/RN</span>
+        <div class="sondage-bar-bg"><div class="sondage-bar-fill" style="width:78%;background:#2c3e50"></div></div>
+        <span class="sondage-pct parti-RN">78 %</span>
+      </div>
+      <div class="sondage-item">
+        <span class="sondage-label parti-LR">Proches LR pro-fusion LR/RN</span>
+        <div class="sondage-bar-bg"><div class="sondage-bar-fill" style="width:64%;background:#2980b9"></div></div>
+        <span class="sondage-pct parti-LR">64 %</span>
+      </div>
+      <div class="sondage-item">
+        <span class="sondage-label parti-PS">Proches PS pro-union LFI</span>
+        <div class="sondage-bar-bg"><div class="sondage-bar-fill" style="width:36%;background:#e74c3c"></div></div>
+        <span class="sondage-pct parti-PS">36 %</span>
+      </div>
+      <div class="sondage-item">
+        <span class="sondage-label" style="color:#555">Français opposés à union LFI/reste gauche</span>
+        <div class="sondage-bar-bg"><div class="sondage-bar-fill" style="width:75%;background:#7f8c8d"></div></div>
+        <span class="sondage-pct" style="color:#555">75 %</span>
+      </div>
+    </div>
+    <div style="font-size:0.78rem;color:#7f8c8d;margin-top:0.75rem;">Sources : Ipsos-BVA-Cesi / France Bleu</div>
+  </div>
+
+  <!-- Note mise à jour -->
+  <div style="background:#fff3cd;border:1px solid #ffc107;border-radius:10px;padding:1rem;margin-bottom:2rem;font-size:0.85rem;">
+    <strong>📌 Prochain rendez-vous :</strong> Second tour le <strong>dimanche 22 mars 2026</strong>. Cette page sera mise à jour avec les résultats définitifs du 1er tour, les fusions de listes et les résultats du second tour. Un bilan complet des changements de maires et de bords politiques sera publié après la soirée électorale du 22 mars.
+  </div>
+
+</div><!-- container -->
+
+<footer>
+  <p>Sources : <a href="https://www.interieur.gouv.fr/municipales2026-premier-tour" target="_blank">Ministère de l'Intérieur</a> | <a href="https://www.franceinfo.fr/elections/carte-resultats-du-1er-tour-des-municipales-2026-decouvrez-les-scores-des-candidats-commune-par-commune-en-france_7858088.html" target="_blank">Franceinfo</a> | <a href="https://www.france24.com/fr/france/20260315-municipales-2026-les-resultats-du-premier-tour-dans-les-principales-villes-de-france" target="_blank">France 24</a> | <a href="https://www.publicsenat.fr/actualites/politique/direct-carte-resultats-analyses-suivez-le-premier-tour-des-elections-municipales" target="_blank">Public Sénat</a> | Estimations Ipsos-BVA-Cesi &amp; Elabe — 15 mars 2026</p>
+</footer>
+
+</body>
+</html>
