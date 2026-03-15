@@ -12,7 +12,7 @@
   <style>
     :root {
       --ps: #FF6B6B; --lfi: #9B59B6; --pcf: #D32F2F; --eco: #4CAF50;
-      --lr: #1976D2; --re: #FF9800; --rn: #37474F; --udr: #009688;
+      --lr: #1976D2; --re: #FF9800; --rn: #5C6BC0; --udr: #009688;
       --rec: #7B1FA2; --div: #90A4AE;
       --bg: #0F172A; --surface: #1E293B; --surface2: #334155;
       --text: #F1F5F9; --text2: #94A3B8; --accent: #38BDF8;
@@ -723,7 +723,7 @@ async function tryFetchOpenData() {
 
 // ===== MAP =====
 let MAP, CLUSTER_GROUP;
-const BORD_COLORS = {gauche:'#FF6B6B',droite:'#1976D2',centre:'#FF9800',rn:'#37474F',eco:'#4CAF50',lfi:'#9B59B6',indecis:'#90A4AE'};
+const BORD_COLORS = {gauche:'#FF6B6B',droite:'#1976D2',centre:'#FF9800',rn:'#5C6BC0',eco:'#4CAF50',lfi:'#9B59B6',indecis:'#90A4AE'};
 
 function initMap() {
   MAP = L.map('map', {center:[46.6,2.5], zoom:6, scrollWheelZoom:true});
@@ -755,7 +755,7 @@ function initMap() {
       radius: Math.max(8, Math.min(16, city.candidats.length*3+4)),
       fillColor:c, fillOpacity:0.85, color:'#fff', weight:2
     });
-    mk.on('click', () => openModal(city.id));
+    mk.bindPopup(buildPopupHTML(city), {maxWidth:320, className:'dark-popup'});
     mk.on('mouseover', function(){ this.setStyle({weight:3,fillOpacity:1}); });
     mk.on('mouseout', function(){ this.setStyle({weight:2,fillOpacity:0.85}); });
     city._marker = mk; city._map = MAP;
@@ -776,6 +776,29 @@ function filterMap(filter) {
   list.forEach(city => {
     if (city._marker) CLUSTER_GROUP.addLayer(city._marker);
   });
+}
+
+function buildPopupHTML(city) {
+  const statusLabel = city.status === 'elu' ? 'ÉLU' : '2e TOUR';
+  const statusColor = city.status === 'elu' ? '#22C55E' : '#F59E0B';
+  let html = '<div style="min-width:230px;font-family:inherit">';
+  html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">';
+  html += '<strong style="font-size:1.05rem">'+city.name+'</strong>';
+  html += '<span style="font-size:0.65rem;background:'+statusColor+'33;color:'+statusColor+';padding:2px 6px;border-radius:999px;font-weight:700">'+statusLabel+'</span>';
+  html += '</div>';
+  html += '<div style="font-size:0.72rem;color:#94A3B8">'+city.pop+' — '+city.dept+'</div>';
+  html += '<hr style="border-color:#475569;margin:6px 0">';
+  city.candidats.forEach(cand => {
+    const score = cand.score !== null ? cand.score + ' %' : '—';
+    html += '<div style="display:flex;justify-content:space-between;margin:3px 0;font-size:0.8rem">';
+    html += '<span>'+cand.nom+' <span style="color:#94A3B8;font-size:0.7rem">('+cand.parti+')</span></span>';
+    html += '<strong style="color:'+cand.color+'">'+score+'</strong>';
+    html += '</div>';
+  });
+  html += '<hr style="border-color:#475569;margin:6px 0">';
+  html += '<button onclick="openModal(\''+city.id+'\')" style="width:100%;padding:6px;background:#38BDF8;color:#0F172A;border:none;border-radius:8px;font-weight:700;font-size:0.8rem;cursor:pointer">Voir les détails</button>';
+  html += '</div>';
+  return html;
 }
 
 // ===== COMPACT TILES =====
@@ -891,10 +914,10 @@ function openModal(cityId) {
   overlay.classList.add('active');
   document.body.style.overflow = 'hidden';
 
-  // Zoom map
+  // Zoom map & close popup
+  if (MAP) MAP.closePopup();
   if (city._marker && MAP) {
     MAP.setView([city.lat, city.lng], 10);
-    // Spiderfy cluster if needed, then open marker
     CLUSTER_GROUP.zoomToShowLayer(city._marker, function() {});
   }
 }
@@ -926,31 +949,131 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 // ===== SEARCH =====
+let searchDebounce = null;
+
 function setupSearch() {
   const input = document.getElementById('citySearch');
   const results = document.getElementById('searchResults');
+
   input.addEventListener('input', function() {
-    const q = this.value.toLowerCase().trim();
+    const q = this.value.trim();
     if (q.length < 2) { results.classList.remove('active'); return; }
-    const matches = CITIES.filter(c => c.name.toLowerCase().includes(q) || c.dept.toLowerCase().includes(q));
-    if (!matches.length) { results.classList.remove('active'); return; }
-    results.innerHTML = '';
-    matches.forEach(city => {
-      const item = document.createElement('div');
-      item.className = 'search-result-item';
-      item.innerHTML = '<span class="city-n">'+city.name+'</span> <span class="city-dept">— '+city.dept+'</span>';
-      item.addEventListener('click', () => {
-        openModal(city.id);
-        results.classList.remove('active');
-        input.value = city.name;
-      });
-      results.appendChild(item);
-    });
-    results.classList.add('active');
+
+    // 1) Local matches first (instant)
+    const localMatches = CITIES.filter(c =>
+      c.name.toLowerCase().includes(q.toLowerCase()) || c.dept.toLowerCase().includes(q.toLowerCase())
+    );
+
+    // Show local results immediately
+    renderSearchResults(results, input, localMatches, []);
+
+    // 2) Remote search via geo.api.gouv.fr (debounced)
+    clearTimeout(searchDebounce);
+    searchDebounce = setTimeout(() => {
+      fetch('https://geo.api.gouv.fr/communes?nom='+encodeURIComponent(q)+'&fields=nom,code,codesPostaux,departement,population,centre&boost=population&limit=15', {signal: AbortSignal.timeout(4000)})
+        .then(r => r.json())
+        .then(apiCities => {
+          // Filter out cities already in local data
+          const localIds = new Set(CITIES.map(c => c.name.toLowerCase()));
+          const remote = apiCities.filter(ac => !localIds.has(ac.nom.toLowerCase()));
+          renderSearchResults(results, input, localMatches, remote);
+        })
+        .catch(() => {}); // Silently fail, local results are enough
+    }, 250);
   });
+
   document.addEventListener('click', function(e) {
     if (!e.target.closest('.search-container')) results.classList.remove('active');
   });
+}
+
+function renderSearchResults(container, input, localMatches, remoteCities) {
+  container.innerHTML = '';
+
+  // Local results (with data)
+  localMatches.forEach(city => {
+    const item = document.createElement('div');
+    item.className = 'search-result-item';
+    const top = city.candidats.filter(c=>c.score!==null).slice(0,2);
+    const preview = top.map(c => c.parti+' '+c.score+'%').join(' / ');
+    item.innerHTML = '<span class="city-n">'+city.name+'</span> <span class="city-dept">— '+city.dept+'</span>'
+      + (preview ? '<div style="font-size:0.7rem;color:var(--accent);margin-top:2px">'+preview+'</div>' : '');
+    item.addEventListener('click', () => {
+      openModal(city.id);
+      container.classList.remove('active');
+      input.value = city.name;
+    });
+    container.appendChild(item);
+  });
+
+  // Separator if both
+  if (localMatches.length > 0 && remoteCities.length > 0) {
+    const sep = document.createElement('div');
+    sep.style.cssText = 'padding:4px 1rem;font-size:0.68rem;color:var(--text2);background:var(--surface2);font-weight:600;letter-spacing:0.5px;text-transform:uppercase';
+    sep.textContent = 'Autres communes';
+    container.appendChild(sep);
+  }
+
+  // Remote results (from API)
+  remoteCities.forEach(ac => {
+    const item = document.createElement('div');
+    item.className = 'search-result-item';
+    const deptName = ac.departement ? ac.departement.nom : '';
+    const popStr = ac.population ? (ac.population > 1000 ? Math.round(ac.population/1000)+'k hab.' : ac.population+' hab.') : '';
+    item.innerHTML = '<span class="city-n">'+ac.nom+'</span> <span class="city-dept">— '+deptName+(popStr?' · '+popStr:'')+'</span>';
+    item.addEventListener('click', () => {
+      openRemoteCityModal(ac);
+      container.classList.remove('active');
+      input.value = ac.nom;
+    });
+    container.appendChild(item);
+  });
+
+  // No results at all
+  if (localMatches.length === 0 && remoteCities.length === 0) {
+    const none = document.createElement('div');
+    none.className = 'search-result-item';
+    none.style.color = 'var(--text2)';
+    none.textContent = 'Recherche en cours...';
+    container.appendChild(none);
+  }
+
+  container.classList.add('active');
+}
+
+function openRemoteCityModal(apiCity) {
+  const overlay = document.getElementById('modalOverlay');
+  const body = document.getElementById('modalBody');
+  const deptName = apiCity.departement ? apiCity.departement.nom : 'France';
+  const popStr = apiCity.population ? apiCity.population.toLocaleString('fr-FR') + ' hab.' : 'Population inconnue';
+  const code = apiCity.code || '';
+  const deptCode = code.substring(0, code.length > 4 ? 2 : 2);
+  const miUrl = 'https://www.resultats-elections.interieur.gouv.fr/municipales2026/' + deptCode.padStart(3,'0') + '/' + code + '/';
+
+  let html = '';
+  html += '<div class="modal-city-name">'+apiCity.nom+'</div>';
+  html += '<div class="modal-city-meta">'+popStr+' — '+deptName+'</div>';
+
+  html += '<div class="modal-section-title">Résultats 1er tour</div>';
+  html += '<div class="modal-2t-placeholder">Les résultats détaillés pour cette commune ne sont pas encore intégrés dans notre base.<br><br>';
+  html += 'Consultez les résultats officiels :<br>';
+  html += '<a href="'+miUrl+'" target="_blank" style="color:var(--accent);font-weight:600">Ministère de l\'Intérieur — '+apiCity.nom+'</a><br>';
+  html += '<a href="https://www.franceinfo.fr/elections/carte-resultats-du-1er-tour-des-municipales-2026-decouvrez-les-scores-des-candidats-commune-par-commune-en-france_7858088.html" target="_blank" style="color:var(--accent)">Franceinfo — Carte interactive</a>';
+  html += '</div>';
+
+  html += '<div class="modal-sources"><strong style="font-size:0.72rem;color:var(--text2)">Sources :</strong> ';
+  html += '<a href="'+miUrl+'" target="_blank">Ministère de l\'Intérieur</a>';
+  html += '<a href="https://www.resultats-elections.interieur.gouv.fr/municipales2026/" target="_blank">Portail national</a>';
+  html += '</div>';
+
+  body.innerHTML = html;
+  overlay.classList.add('active');
+  document.body.style.overflow = 'hidden';
+
+  // Zoom on map if coordinates available
+  if (apiCity.centre && apiCity.centre.coordinates && MAP) {
+    MAP.setView([apiCity.centre.coordinates[1], apiCity.centre.coordinates[0]], 13);
+  }
 }
 
 // ===== INIT =====
