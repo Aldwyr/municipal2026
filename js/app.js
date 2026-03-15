@@ -5,6 +5,7 @@ let currentFilter = 'all';
 let activeLegendParty = null;
 let openDetailCityId = null;
 let refreshCountdown = REFRESH_INTERVAL / 1000;
+let citiesLoaded = false;
 
 // ===== UTILS =====
 function computeTags(r) {
@@ -21,6 +22,10 @@ function computeTags(r) {
     }
   }
   return [...new Set(tags)];
+}
+
+function hasResults(city) {
+  return city.candidats && city.candidats.length > 0 && city.candidats.some(c => c.score !== null);
 }
 
 function buildCity(apiCity, results) {
@@ -52,11 +57,8 @@ function getLeadScore(city, family) {
 function cityMatchesLegendParty(city, partyKey) {
   if (!city.candidats || !city.candidats.length) return false;
   const aliases = LEGEND_PARTY_MAP[partyKey] || [];
-  // Check if the LEADING candidate (first with a score) belongs to this party
   const lead = city.candidats.find(c => c.score !== null);
   if (!lead) return false;
-  // Match if any alias is a substring of the candidate's parti or vice versa
-  // Also match by bord for broader categories (RN = all "Extrême droite")
   const bordMatch = {
     RN: ['Extrême droite'], UDR: ['Droite souverainiste'],
     PS: ['Gauche'], LFI: ['Extrême gauche'], PCF: ['Gauche'],
@@ -70,41 +72,60 @@ function cityMatchesLegendParty(city, partyKey) {
   return partiMatch || bMatch;
 }
 
-// ===== FETCH CITIES =====
-async function fetchCities(filter) {
+// ===== LOAD CITIES (once at startup) =====
+async function loadCities() {
   const grid = document.getElementById('citiesGrid');
   grid.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--text2)">Chargement...</div>';
+
+  // Start with all RESULTS_DB cities (guaranteed data)
+  CITIES = Object.entries(RESULTS_DB).map(([code, results]) => {
+    const geo = GEO_FALLBACK[code];
+    if (!geo) return null;
+    const fakeApi = {
+      code, nom: geo.nom, population: geo.pop,
+      centre: { coordinates: [geo.lng, geo.lat] },
+      departement: { nom: geo.dept }
+    };
+    return buildCity(fakeApi, results);
+  }).filter(Boolean);
+
+  // Try to enrich with API data (more cities, better geo data)
   try {
     const resp = await fetch('https://geo.api.gouv.fr/communes?fields=nom,code,departement,population,centre&boost=population&limit=80', { signal: AbortSignal.timeout(6000) });
     const apiCities = await resp.json();
-    CITIES = apiCities.map(ac => buildCity(ac, RESULTS_DB[ac.code] || null));
 
-    // Always inject ALL RESULTS_DB cities not already fetched from API
-    const apiCodes = new Set(apiCities.map(ac => ac.code));
-    Object.entries(RESULTS_DB).forEach(([code, results]) => {
-      if (!apiCodes.has(code) && GEO_FALLBACK[code]) {
-        const geo = GEO_FALLBACK[code];
-        const fakeApi = {
-          code, nom: geo.nom, population: geo.pop,
-          centre: { coordinates: [geo.lng, geo.lat] },
-          departement: { nom: geo.dept }
-        };
-        CITIES.push(buildCity(fakeApi, results));
+    // Merge: update existing cities with API data, add new ones
+    const existingCodes = new Set(CITIES.map(c => c.id));
+    apiCities.forEach(ac => {
+      if (existingCodes.has(ac.code)) {
+        // Update existing city with better API geo data
+        const idx = CITIES.findIndex(c => c.id === ac.code);
+        if (idx !== -1) {
+          CITIES[idx] = buildCity(ac, RESULTS_DB[ac.code] || null);
+        }
+      } else {
+        // Add new city from API (no results yet)
+        CITIES.push(buildCity(ac, null));
       }
     });
-
-    displayFiltered(filter);
   } catch (e) {
-    console.log('API indisponible, fallback:', e);
-    fallbackFromEmbedded(filter);
+    console.log('API geo indisponible, données embarquées uniquement:', e);
   }
+
+  citiesLoaded = true;
+  displayFiltered('all');
 }
 
+// ===== DISPLAY (no re-fetch, just filter + render) =====
 function displayFiltered(filter) {
+  if (!citiesLoaded) return;
+
   let filtered = applyFilter(CITIES, filter);
+
   if (activeLegendParty) {
     filtered = filtered.filter(c => cityMatchesLegendParty(c, activeLegendParty));
   }
+
   filtered = filtered.slice(0, 20);
   renderTiles(filtered);
   updateMap(filtered);
@@ -122,43 +143,23 @@ function applyFilter(cities, filter) {
       list.sort((a, b) => (b.population || 0) - (a.population || 0));
       break;
     case 'gauche':
-      list = list.filter(c => c.candidats && c.candidats.length && getLeadScore(c, 'gauche') > 0);
+      list = list.filter(c => hasResults(c) && getLeadScore(c, 'gauche') > 0);
       list.sort((a, b) => getLeadScore(b, 'gauche') - getLeadScore(a, 'gauche'));
       break;
     case 'droite':
-      list = list.filter(c => c.candidats && c.candidats.length && getLeadScore(c, 'droite') > 0);
+      list = list.filter(c => hasResults(c) && getLeadScore(c, 'droite') > 0);
       list.sort((a, b) => getLeadScore(b, 'droite') - getLeadScore(a, 'droite'));
       break;
     case 'rn':
-      list = list.filter(c => c.candidats && c.candidats.length && getLeadScore(c, 'rn') > 0);
+      list = list.filter(c => hasResults(c) && getLeadScore(c, 'rn') > 0);
       list.sort((a, b) => getLeadScore(b, 'rn') - getLeadScore(a, 'rn'));
       break;
-    default: // 'all' — prioritize cities with results, then by population
-      list.sort((a, b) => {
-        const aHas = a.candidats && a.candidats.some(c => c.score !== null);
-        const bHas = b.candidats && b.candidats.some(c => c.score !== null);
-        if (aHas && !bHas) return -1;
-        if (!aHas && bHas) return 1;
-        return (b.population || 0) - (a.population || 0);
-      });
+    default: // 'all' — ONLY cities with results, sorted by population
+      list = list.filter(c => hasResults(c));
+      list.sort((a, b) => (b.population || 0) - (a.population || 0));
       break;
   }
   return list;
-}
-
-function fallbackFromEmbedded(filter) {
-  CITIES = Object.entries(RESULTS_DB).map(([code, results]) => {
-    const geo = GEO_FALLBACK[code] || { nom: code, pop: 0, lat: 46.6, lng: 2.5, dept: '' };
-    const popStr = geo.pop >= 1e6 ? (geo.pop / 1e6).toFixed(1) + 'M hab.' : Math.round(geo.pop / 1000) + 'k hab.';
-    const deptCode = code.substring(0, code.startsWith('97') ? 3 : 2);
-    return {
-      id: code, name: geo.nom, pop: popStr, dept: geo.dept,
-      lat: geo.lat, lng: geo.lng, code, population: geo.pop,
-      ...results, tags: computeTags(results),
-      sources: [{ label: "Ministère de l'Intérieur", url: 'https://www.resultats-elections.interieur.gouv.fr/municipales2026/' + deptCode.padStart(3, '0') + '/' + code + '/' }]
-    };
-  });
-  displayFiltered(filter);
 }
 
 // ===== MAP =====
@@ -249,7 +250,6 @@ function renderTiles(cities) {
       '<div class="city-tile-stacked-bar">' + bar + '</div>';
     grid.appendChild(tile);
 
-    // If this tile was expanded, re-insert the detail row after it
     if (openDetailCityId === city.id) {
       const detailRow = document.createElement('div');
       detailRow.className = 'tile-detail-row';
@@ -262,11 +262,9 @@ function renderTiles(cities) {
 
 // ===== INLINE DETAIL (tile expansion) =====
 function toggleTileDetail(cityId) {
-  // Close detail panel if open
   closeDetailPanel();
 
   if (openDetailCityId === cityId) {
-    // Collapse
     openDetailCityId = null;
     const existing = document.getElementById('tileDetail');
     if (existing) existing.remove();
@@ -275,7 +273,6 @@ function toggleTileDetail(cityId) {
     return;
   }
 
-  // Collapse previous
   openDetailCityId = cityId;
   const oldDetail = document.getElementById('tileDetail');
   if (oldDetail) oldDetail.remove();
@@ -293,7 +290,6 @@ function toggleTileDetail(cityId) {
   detailRow.innerHTML = buildDetailHTML(city, true);
   tile.after(detailRow);
 
-  // Gentle map pan (no excessive zoom)
   if (MAP && city._marker) {
     MAP.setView([city.lat, city.lng], Math.max(MAP.getZoom(), 8), { animate: true });
     city._marker.openPopup();
@@ -302,9 +298,8 @@ function toggleTileDetail(cityId) {
   detailRow.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
-// ===== DETAIL PANEL (from map/search click — top of right column) =====
+// ===== DETAIL PANEL (from map/search click) =====
 function showDetailPanel(cityId) {
-  // Close any tile expansion
   if (openDetailCityId) {
     const oldDetail = document.getElementById('tileDetail');
     if (oldDetail) oldDetail.remove();
@@ -336,7 +331,6 @@ function showRemoteCityDetail(apiCity) {
     showDetailPanel(city.id);
     return;
   }
-  // No results — show minimal info
   const city = buildCity(apiCity, null);
   if (!CITIES.find(c => c.id === city.id)) CITIES.push(city);
   showDetailPanel(city.id);
@@ -345,7 +339,7 @@ function showRemoteCityDetail(apiCity) {
   }
 }
 
-// ===== BUILD DETAIL HTML (shared by panel and tile expansion) =====
+// ===== BUILD DETAIL HTML =====
 function buildDetailHTML(city, isTile) {
   const maxScore = Math.max(...(city.candidats || []).map(c => c.score || 0), 1);
   const deptCode = (city.code || '').substring(0, (city.code || '').startsWith('97') ? 3 : 2);
@@ -402,11 +396,9 @@ function setupLegend() {
     chip.addEventListener('click', function () {
       const party = this.dataset.party;
       if (activeLegendParty === party) {
-        // Deselect
         activeLegendParty = null;
         this.classList.remove('active');
       } else {
-        // Select
         document.querySelectorAll('.legend-chip.active').forEach(c => c.classList.remove('active'));
         activeLegendParty = party;
         this.classList.add('active');
@@ -416,7 +408,7 @@ function setupLegend() {
   });
 }
 
-// ===== FILTERS =====
+// ===== FILTERS (no re-fetch, just re-display) =====
 function setupFilters() {
   document.getElementById('filterTabs').addEventListener('click', function (e) {
     const tab = e.target.closest('.filter-tab');
@@ -424,7 +416,7 @@ function setupFilters() {
     document.querySelectorAll('.filter-tab').forEach(t => t.classList.remove('active'));
     tab.classList.add('active');
     currentFilter = tab.dataset.filter;
-    fetchCities(currentFilter);
+    displayFiltered(currentFilter);
   });
 }
 
@@ -507,13 +499,12 @@ function setupAutoRefresh() {
 // ===== INIT =====
 document.addEventListener('DOMContentLoaded', function () {
   initMap();
-  fetchCities('all');
+  loadCities();
   setupSearch();
   setupFilters();
   setupLegend();
   setupAutoRefresh();
 
-  // Close detail panel with Escape
   document.addEventListener('keydown', e => {
     if (e.key === 'Escape') {
       closeDetailPanel();
