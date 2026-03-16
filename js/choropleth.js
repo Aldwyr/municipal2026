@@ -215,9 +215,8 @@ async function handleCommuneClick(code, nom, population) {
   }
 
   showDetailPanel(city.id);
-  // Highlight the commune on the map
+  // Highlight the commune on the map and zoom moderately
   highlightCommune(code);
-  // Zoom to the commune — find its bounds from the GeoJSON layer
   if (MAP) {
     let found = false;
     const searchLg = activeDomTom ? domtomGeoLayers[activeDomTom] :
@@ -231,6 +230,7 @@ async function handleCommuneClick(code, nom, population) {
       });
     }
   }
+  showMapCloseBtn();
 }
 
 // ===== DESELECT DEPARTMENT =====
@@ -246,16 +246,13 @@ function deselectDepartment() {
     const code = l.feature.properties.code;
     l.setStyle({ fillColor: getDeptColor(code, deptPoliticalData), fillOpacity: 1, weight: 1, color: 'rgba(71,85,105,0.4)' });
   });
+  _navGuard = true;
   MAP.flyTo(FRANCE_VIEW.center, FRANCE_VIEW.zoom, { duration: 0.8 });
+  setTimeout(() => { _navGuard = false; }, 1000);
   hideMapCloseBtn();
   // Close any open detail
   closeDetailPanel();
-  if (openDetailCityId) {
-    const existing = document.getElementById('tileDetail');
-    if (existing) existing.remove();
-    document.querySelectorAll('.city-tile.active').forEach(t => t.classList.remove('active'));
-    openDetailCityId = null;
-  }
+  clearOpenDetail();
   // Reset tiles to national view
   displayFiltered(currentFilter);
 }
@@ -291,8 +288,10 @@ async function selectDepartment(deptCode, layer) {
   if (communeLayers[deptCode]) communeLayerGroup.addLayer(communeLayers[deptCode]);
   if (!MAP.hasLayer(communeLayerGroup)) MAP.addLayer(communeLayerGroup);
 
-  // Zoom to dept
+  // Zoom to dept (with nav guard to prevent cascading zoomend)
+  _navGuard = true;
   if (layer) MAP.fitBounds(layer.getBounds(), { maxZoom: 11, padding: [20, 20] });
+  setTimeout(() => { _navGuard = false; }, 1200);
   showMapCloseBtn();
 
   // Show dept communes in the tiles

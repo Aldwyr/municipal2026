@@ -9,6 +9,7 @@ let citiesLoaded = false;
 let lastUpdateTimestamp = null;
 const FRANCE_VIEW = { center: [46.6, 2.5], zoom: 6 };
 let activeCommuneCode = null; // currently highlighted commune on map
+let _navGuard = false; // prevent cascading zoomend events during programmatic navigation
 
 // ===== UTILS =====
 function computeTags(r) {
@@ -237,25 +238,44 @@ function initMap() {
 
   // Two-level dezoom: commune → department view, then department → national
   MAP.on('zoomend', function () {
+    if (_navGuard) return; // Skip during programmatic navigation
     const zoom = MAP.getZoom();
-    // Level 1: If a commune is highlighted and we zoom out, deselect commune (back to dept view)
-    if (activeCommuneCode && zoom <= 9 && activeDeptCode) {
-      deselectCommune();
-      // Close any open detail
-      closeDetailPanel();
-      if (openDetailCityId) {
-        const existing = document.getElementById('tileDetail');
-        if (existing) existing.remove();
-        document.querySelectorAll('.city-tile.active').forEach(t => t.classList.remove('active'));
-        openDetailCityId = null;
-      }
-      return; // Stop here — don't also deselect department in the same event
+    // Level 1: commune selected + dezoom → back to department view
+    if (activeCommuneCode && zoom <= 9 && (activeDeptCode || activeDomTom)) {
+      returnToDeptView();
+      return; // Stop here — don't also deselect department
     }
-    // Level 2: If at department level (no commune selected) and zoom out, deselect department
+    // Level 2: department level (no commune) + dezoom → back to national
     if (activeDeptCode && !activeCommuneCode && zoom <= 7) {
       deselectDepartment();
     }
   });
+}
+
+// ===== SHARED: return from commune view to department/DOM-TOM view =====
+function returnToDeptView() {
+  deselectCommune();
+  closeDetailPanel();
+  clearOpenDetail();
+  // Fly back to department or DOM/TOM bounds (with nav guard to prevent cascading zoomend)
+  _navGuard = true;
+  if (activeDomTom && domtomGeoLayers[activeDomTom]) {
+    const bounds = domtomGeoLayers[activeDomTom].getBounds();
+    if (bounds.isValid()) MAP.flyToBounds(bounds, { maxZoom: domtomMaps[activeDomTom] ? domtomMaps[activeDomTom].mainZoom : 10, padding: [20, 20], duration: 0.6 });
+  } else if (activeDeptCode && communeLayers[activeDeptCode]) {
+    MAP.flyToBounds(communeLayers[activeDeptCode].getBounds(), { maxZoom: 10, padding: [20, 20], duration: 0.6 });
+  }
+  setTimeout(() => { _navGuard = false; }, 1000);
+}
+
+// Clear any open inline tile detail
+function clearOpenDetail() {
+  if (openDetailCityId) {
+    const existing = document.getElementById('tileDetail');
+    if (existing) existing.remove();
+    document.querySelectorAll('.city-tile.active').forEach(t => t.classList.remove('active'));
+    openDetailCityId = null;
+  }
 }
 
 // ===== MAP CLOSE BUTTON (deselect dept / DOM/TOM) =====
@@ -266,24 +286,20 @@ function showMapCloseBtn() {
     btn.id = 'mapCloseBtn';
     btn.className = 'map-close-btn';
     btn.innerHTML = '&times;';
-    btn.title = 'Retour à la vue nationale';
+    btn.title = 'Retour';
     btn.addEventListener('click', function () {
+      // Level 1: commune selected → back to dept/DOM-TOM view
+      if (activeCommuneCode && (activeDeptCode || activeDomTom)) {
+        returnToDeptView();
+        return; // Keep close button visible for level 2
+      }
+      // Level 2: DOM/TOM view → back to national
       if (activeDomTom) {
         exitDomTomView();
-      } else if (activeCommuneCode && activeDeptCode) {
-        // Level 1: commune → back to department view
-        deselectCommune();
-        closeDetailPanel();
-        if (openDetailCityId) {
-          const existing = document.getElementById('tileDetail');
-          if (existing) existing.remove();
-          document.querySelectorAll('.city-tile.active').forEach(t => t.classList.remove('active'));
-          openDetailCityId = null;
-        }
-        MAP.flyToBounds(communeLayers[activeDeptCode].getBounds(), { maxZoom: 10, padding: [20, 20], duration: 0.6 });
-        // Keep close button visible for level 2
-      } else if (activeDeptCode) {
-        // Level 2: department → back to national
+        return;
+      }
+      // Level 2: department view → back to national
+      if (activeDeptCode) {
         deselectDepartment();
         hideMapCloseBtn();
       }
@@ -301,12 +317,25 @@ function hideMapCloseBtn() {
 function zoomToCity(cityId) {
   const city = CITIES.find(c => c.id === cityId);
   if (!city || !MAP) return;
-  // Don't zoom the main map if we're on a DOM/TOM view (commune is on a distant island)
-  if (activeDomTom) return;
   // Highlight the commune on the map
   highlightCommune(cityId);
-  // Moderate zoom: 10 instead of 11
-  MAP.setView([city.lat, city.lng], Math.max(MAP.getZoom(), 10), { animate: true });
+  // Try to find the commune's GeoJSON bounds for accurate zooming
+  const searchLg = activeDomTom ? domtomGeoLayers[activeDomTom] :
+    (activeDeptCode ? communeLayers[activeDeptCode] : null);
+  if (searchLg) {
+    let found = false;
+    searchLg.eachLayer(function (l) {
+      if (!found && l.feature && l.feature.properties.code === cityId) {
+        MAP.fitBounds(l.getBounds(), { maxZoom: 13, padding: [40, 40], animate: true });
+        found = true;
+      }
+    });
+    if (found) return;
+  }
+  // Fallback: use lat/lng if valid (not default 0,0 or 46.6,2.5)
+  if (city.lat && city.lng && city.lat !== 0 && city.lng !== 0 && !(city.lat === 46.6 && city.lng === 2.5)) {
+    MAP.setView([city.lat, city.lng], Math.max(MAP.getZoom(), 10), { animate: true });
+  }
 }
 
 // Highlight a specific commune on the choropleth map
@@ -392,20 +421,24 @@ function toggleTileDetail(cityId) {
   closeDetailPanel();
 
   if (openDetailCityId === cityId) {
+    // Closing: deselect commune and zoom back
     openDetailCityId = null;
     deselectCommune();
     const existing = document.getElementById('tileDetail');
     if (existing) existing.remove();
     const activeTile = document.querySelector('.city-tile.active');
     if (activeTile) activeTile.classList.remove('active');
-    // Zoom back to department level if a dept is active, else national
-    if (!activeDomTom) {
-      if (activeDeptCode && communeLayers[activeDeptCode]) {
-        MAP.flyToBounds(communeLayers[activeDeptCode].getBounds(), { maxZoom: 10, padding: [20, 20], duration: 0.6 });
-      } else if (MAP) {
-        MAP.flyTo(FRANCE_VIEW.center, FRANCE_VIEW.zoom, { duration: 0.8 });
-      }
+    // Zoom back to department/DOM-TOM level (with nav guard)
+    _navGuard = true;
+    if (activeDomTom && domtomGeoLayers[activeDomTom]) {
+      const bounds = domtomGeoLayers[activeDomTom].getBounds();
+      if (bounds.isValid()) MAP.flyToBounds(bounds, { maxZoom: domtomMaps[activeDomTom] ? domtomMaps[activeDomTom].mainZoom : 10, padding: [20, 20], duration: 0.6 });
+    } else if (activeDeptCode && communeLayers[activeDeptCode]) {
+      MAP.flyToBounds(communeLayers[activeDeptCode].getBounds(), { maxZoom: 10, padding: [20, 20], duration: 0.6 });
+    } else if (MAP) {
+      MAP.flyTo(FRANCE_VIEW.center, FRANCE_VIEW.zoom, { duration: 0.8 });
     }
+    setTimeout(() => { _navGuard = false; }, 1000);
     return;
   }
 
@@ -427,7 +460,8 @@ function toggleTileDetail(cityId) {
   tile.after(detailRow);
 
   zoomToCity(cityId);
-  detailRow.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  // Scroll to show the tile (city name) at top, not the detail
+  tile.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 // ===== DETAIL PANEL =====
@@ -797,7 +831,9 @@ async function selectDomTom(dept) {
   if (domtomGeoLayers[dept]) domtomGeoLayers[dept].addTo(MAP);
 
   // Fly to DOM/TOM territory (mainZoom = closer view for the big map)
+  _navGuard = true;
   MAP.flyTo(info.center, info.mainZoom, { duration: 1 });
+  setTimeout(() => { _navGuard = false; }, 1500);
 
   // Hide dept layer to declutter
   if (deptLayer && MAP.hasLayer(deptLayer)) MAP.removeLayer(deptLayer);
@@ -818,12 +854,7 @@ async function selectDomTom(dept) {
   // Show communes list in tiles (no preselection)
   await loadDeptResults(dept);
   closeDetailPanel();
-  if (openDetailCityId) {
-    const existing = document.getElementById('tileDetail');
-    if (existing) existing.remove();
-    document.querySelectorAll('.city-tile.active').forEach(t => t.classList.remove('active'));
-    openDetailCityId = null;
-  }
+  clearOpenDetail();
   displayDeptResults(dept);
 }
 
@@ -840,7 +871,9 @@ function exitDomTomView() {
   // Restore France bounds
   MAP.setMaxBounds(FRANCE_BOUNDS);
   MAP.setMinZoom(5);
+  _navGuard = true;
   MAP.flyTo(FRANCE_VIEW.center, FRANCE_VIEW.zoom, { duration: 0.8 });
+  setTimeout(() => { _navGuard = false; }, 1000);
 
   // Restore ALL insets
   Object.keys(domtomMaps).forEach(d => restoreDomTomInset(d));
@@ -849,12 +882,7 @@ function exitDomTomView() {
   activeDomTom = null;
   hideMapCloseBtn();
   closeDetailPanel();
-  if (openDetailCityId) {
-    const existing = document.getElementById('tileDetail');
-    if (existing) existing.remove();
-    document.querySelectorAll('.city-tile.active').forEach(t => t.classList.remove('active'));
-    openDetailCityId = null;
-  }
+  clearOpenDetail();
   displayFiltered(currentFilter);
 }
 
