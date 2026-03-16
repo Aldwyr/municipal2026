@@ -31,13 +31,13 @@ function hasResults(city) {
 
 function buildCity(apiCity, results) {
   const code = apiCity.code;
-  const deptName = apiCity.departement ? apiCity.departement.nom : '';
+  const deptName = apiCity.departement ? apiCity.departement.nom : (apiCity.dept || '');
   const pop = apiCity.population || 0;
   const popStr = pop >= 1e6 ? (pop / 1e6).toFixed(1).replace('.0', '') + ' M hab.'
     : pop >= 1000 ? Math.round(pop / 1000) + ' k hab.' : pop + ' hab.';
-  const lat = apiCity.centre ? apiCity.centre.coordinates[1] : 46.6;
-  const lng = apiCity.centre ? apiCity.centre.coordinates[0] : 2.5;
-  const deptCode = code.substring(0, code.startsWith('97') ? 3 : 2);
+  const lat = apiCity.centre ? apiCity.centre.coordinates[1] : (apiCity.lat || 46.6);
+  const lng = apiCity.centre ? apiCity.centre.coordinates[0] : (apiCity.lng || 2.5);
+  const deptCode = getDeptCode(code);
   const miUrl = 'https://www.resultats-elections.interieur.gouv.fr/municipales2026/' + deptCode.padStart(3, '0') + '/' + code + '/';
   const base = {
     id: code, name: apiCity.nom, pop: popStr, dept: deptName,
@@ -45,7 +45,7 @@ function buildCity(apiCity, results) {
     sources: [{ label: "Ministère de l'Intérieur", url: miUrl }]
   };
   if (results) return { ...base, ...results, tags: computeTags(results) };
-  return { ...base, status: 'inconnu', bord: 'indecis', participation: 0, candidats: [], tags: [], note: 'Résultats non encore disponibles' };
+  return { ...base, status: 'inconnu', bord: 'indecis', participation: 0, candidats: [], tags: [], note: null };
 }
 
 function getLeadScore(city, family) {
@@ -82,8 +82,7 @@ async function fetchLiveResults() {
       cache: 'no-store'
     });
     if (!resp.ok) return null;
-    const data = await resp.json();
-    return data;
+    return await resp.json();
   } catch (e) {
     console.log('Fetch live results failed:', e);
     return null;
@@ -93,12 +92,9 @@ async function fetchLiveResults() {
 async function applyLiveResults() {
   const data = await fetchLiveResults();
   if (!data || !data.results) return false;
-
-  // Check if data is newer
   if (lastUpdateTimestamp && data.lastUpdate === lastUpdateTimestamp) return false;
   lastUpdateTimestamp = data.lastUpdate;
 
-  // Update RESULTS_DB with live data
   let changed = false;
   Object.entries(data.results).forEach(([code, results]) => {
     const existing = RESULTS_DB[code];
@@ -109,52 +105,45 @@ async function applyLiveResults() {
   });
 
   if (changed) {
-    // Update existing CITIES with new results
-    CITIES.forEach((city, idx) => {
-      if (RESULTS_DB[city.id]) {
-        const geo = GEO_FALLBACK[city.id];
-        if (geo) {
-          const fakeApi = {
-            code: city.id, nom: city.name, population: city.population,
-            centre: { coordinates: [city.lng, city.lat] },
-            departement: { nom: city.dept }
-          };
-          CITIES[idx] = buildCity(fakeApi, RESULTS_DB[city.id]);
-        }
-      }
-    });
-
-    // Add any new cities from RESULTS_DB that aren't in CITIES yet
-    Object.entries(RESULTS_DB).forEach(([code, results]) => {
-      if (!CITIES.find(c => c.id === code)) {
-        const geo = GEO_FALLBACK[code];
-        if (geo) {
-          const fakeApi = {
-            code, nom: geo.nom, population: geo.pop,
-            centre: { coordinates: [geo.lng, geo.lat] },
-            departement: { nom: geo.dept }
-          };
-          CITIES.push(buildCity(fakeApi, results));
-        }
-      }
-    });
-
-    // Refresh display
+    rebuildCitiesFromDB();
     displayFiltered(currentFilter);
-
-    // Update choropleth colors
     if (typeof refreshChoroplethColors === 'function') refreshChoroplethColors();
 
-    // Update timestamp
     const ts = new Date(data.lastUpdate);
     const formatted = ts.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
       + ', ' + ts.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
     const el = document.getElementById('lastUpdate');
     if (el) el.textContent = formatted;
-
-    console.log('Données mises à jour:', data.lastUpdate, '— ' + Object.keys(data.results).length + ' communes');
   }
   return changed;
+}
+
+// Rebuild CITIES array from RESULTS_DB + GEO_FALLBACK
+function rebuildCitiesFromDB() {
+  const existingCodes = new Set(CITIES.map(c => c.id));
+
+  // Update existing cities
+  CITIES.forEach((city, idx) => {
+    if (RESULTS_DB[city.id]) {
+      CITIES[idx] = buildCity({
+        code: city.id, nom: city.name, population: city.population,
+        lat: city.lat, lng: city.lng, dept: city.dept
+      }, RESULTS_DB[city.id]);
+    }
+  });
+
+  // Add new cities from RESULTS_DB that have geo fallback
+  Object.entries(RESULTS_DB).forEach(([code, results]) => {
+    if (existingCodes.has(code)) return;
+    const geo = GEO_FALLBACK[code];
+    if (geo) {
+      CITIES.push(buildCity({
+        code, nom: geo.nom, population: geo.pop,
+        centre: { coordinates: [geo.lng, geo.lat] },
+        departement: { nom: geo.dept }
+      }, results));
+    }
+  });
 }
 
 // ===== LOAD CITIES (once at startup) =====
@@ -162,46 +151,22 @@ async function loadCities() {
   const grid = document.getElementById('citiesGrid');
   grid.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--text2)">Chargement...</div>';
 
-  // Try to load live data first
   await applyLiveResults();
 
-  // Start with all RESULTS_DB cities (guaranteed data)
-  CITIES = Object.entries(RESULTS_DB).map(([code, results]) => {
-    const geo = GEO_FALLBACK[code];
-    if (!geo) return null;
-    const fakeApi = {
+  // Build from RESULTS_DB + GEO_FALLBACK (top cities)
+  CITIES = Object.entries(GEO_FALLBACK).map(([code, geo]) => {
+    return buildCity({
       code, nom: geo.nom, population: geo.pop,
       centre: { coordinates: [geo.lng, geo.lat] },
       departement: { nom: geo.dept }
-    };
-    return buildCity(fakeApi, results);
+    }, RESULTS_DB[code] || null);
   }).filter(Boolean);
-
-  // Try to enrich with API data (more cities, better geo data)
-  try {
-    const resp = await fetch('https://geo.api.gouv.fr/communes?fields=nom,code,departement,population,centre&boost=population&limit=80', { signal: AbortSignal.timeout(6000) });
-    const apiCities = await resp.json();
-
-    const existingCodes = new Set(CITIES.map(c => c.id));
-    apiCities.forEach(ac => {
-      if (existingCodes.has(ac.code)) {
-        const idx = CITIES.findIndex(c => c.id === ac.code);
-        if (idx !== -1) {
-          CITIES[idx] = buildCity(ac, RESULTS_DB[ac.code] || null);
-        }
-      } else {
-        CITIES.push(buildCity(ac, null));
-      }
-    });
-  } catch (e) {
-    console.log('API geo indisponible, données embarquées uniquement:', e);
-  }
 
   citiesLoaded = true;
   displayFiltered('all');
 }
 
-// ===== DISPLAY (no re-fetch, just filter + render) =====
+// ===== DISPLAY =====
 function displayFiltered(filter) {
   if (!citiesLoaded) return;
 
@@ -211,7 +176,7 @@ function displayFiltered(filter) {
     filtered = filtered.filter(c => cityMatchesLegendParty(c, activeLegendParty));
   }
 
-  filtered = filtered.slice(0, 20);
+  filtered = filtered.slice(0, 30);
   renderTiles(filtered);
 }
 
@@ -246,7 +211,7 @@ function applyFilter(cities, filter) {
   return list;
 }
 
-// ===== MAP (choropleth only — no markers) =====
+// ===== MAP =====
 function initMap() {
   MAP = L.map('map', { center: [46.6, 2.5], zoom: 6, scrollWheelZoom: true, zoomControl: false });
   L.control.zoom({ position: 'bottomright' }).addTo(MAP);
@@ -255,7 +220,6 @@ function initMap() {
   }).addTo(MAP);
 }
 
-// Zoom to a city on the map (called from tiles / search / commune click)
 function zoomToCity(cityId) {
   const city = CITIES.find(c => c.id === cityId);
   if (!city || !MAP) return;
@@ -303,7 +267,7 @@ function renderTiles(cities) {
   });
 }
 
-// ===== INLINE DETAIL (tile expansion) =====
+// ===== INLINE DETAIL =====
 function toggleTileDetail(cityId) {
   closeDetailPanel();
 
@@ -333,13 +297,11 @@ function toggleTileDetail(cityId) {
   detailRow.innerHTML = buildDetailHTML(city, true);
   tile.after(detailRow);
 
-  // Zoom to city on choropleth map
   zoomToCity(cityId);
-
   detailRow.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
-// ===== DETAIL PANEL (from map/search click) =====
+// ===== DETAIL PANEL =====
 function showDetailPanel(cityId) {
   if (openDetailCityId) {
     const oldDetail = document.getElementById('tileDetail');
@@ -365,20 +327,16 @@ function closeDetailPanel() {
   if (panel) panel.classList.remove('active');
 }
 
-function showRemoteCityDetail(apiCity) {
-  if (RESULTS_DB[apiCity.code]) {
-    const city = buildCity(apiCity, RESULTS_DB[apiCity.code]);
-    if (!CITIES.find(c => c.id === city.id)) CITIES.push(city);
-    showDetailPanel(city.id);
-    // Zoom to commune on map
-    if (apiCity.centre && MAP) {
-      MAP.setView([apiCity.centre.coordinates[1], apiCity.centre.coordinates[0]], Math.max(MAP.getZoom(), 11), { animate: true });
-    }
-    return;
-  }
-  const city = buildCity(apiCity, null);
+async function showRemoteCityDetail(apiCity) {
+  // Load department results to get election data for this commune
+  const deptCode = getDeptCode(apiCity.code);
+  await loadDeptResults(deptCode);
+
+  const results = RESULTS_DB[apiCity.code] || null;
+  const city = buildCity(apiCity, results);
   if (!CITIES.find(c => c.id === city.id)) CITIES.push(city);
   showDetailPanel(city.id);
+
   if (apiCity.centre && MAP) {
     MAP.setView([apiCity.centre.coordinates[1], apiCity.centre.coordinates[0]], Math.max(MAP.getZoom(), 11), { animate: true });
   }
@@ -387,7 +345,7 @@ function showRemoteCityDetail(apiCity) {
 // ===== BUILD DETAIL HTML =====
 function buildDetailHTML(city, isTile) {
   const maxScore = Math.max(...(city.candidats || []).map(c => c.score || 0), 1);
-  const deptCode = (city.code || '').substring(0, (city.code || '').startsWith('97') ? 3 : 2);
+  const deptCode = getDeptCode(city.code || '');
   const miUrl = 'https://www.resultats-elections.interieur.gouv.fr/municipales2026/' + deptCode.padStart(3, '0') + '/' + (city.code || '') + '/';
 
   const closeBtn = isTile
@@ -431,11 +389,12 @@ function buildDetailHTML(city, isTile) {
   if (city.note) html += '<div class="detail-note">' + city.note + '</div>';
   html += '<div class="detail-sources"><strong style="font-size:0.72rem;color:var(--text2)">Sources :</strong> ';
   (city.sources || []).forEach(s => { html += '<a href="' + s.url + '" target="_blank">' + s.label + '</a> '; });
+  html += '<a href="https://www.data.gouv.fr/reuses/resultats-des-elections-municipales-2026" target="_blank">data.gouv.fr</a>';
   html += '</div>';
   return html;
 }
 
-// ===== LEGEND (interactive) =====
+// ===== LEGEND =====
 function setupLegend() {
   document.querySelectorAll('.legend-chip').forEach(chip => {
     chip.addEventListener('click', function () {
@@ -453,7 +412,7 @@ function setupLegend() {
   });
 }
 
-// ===== FILTERS (no re-fetch, just re-display) =====
+// ===== FILTERS =====
 function setupFilters() {
   document.getElementById('filterTabs').addEventListener('click', function (e) {
     const tab = e.target.closest('.filter-tab');
@@ -473,24 +432,31 @@ function setupSearch() {
   input.addEventListener('input', function () {
     const q = this.value.trim();
     if (q.length < 2) { results.classList.remove('active'); return; }
+
+    // Immediate: search in local CITIES + DEPT_CACHE
     const localMatches = CITIES.filter(c => c.name.toLowerCase().includes(q.toLowerCase()) || c.dept.toLowerCase().includes(q.toLowerCase()));
-    renderSearchResults(results, input, localMatches, []);
+    const cachedMatches = searchInDeptCache(q).filter(c => !localMatches.find(lm => lm.id === c.code));
+    renderSearchResults(results, input, localMatches, [], cachedMatches);
+
+    // Debounced: search via geo API for all 36k communes
     clearTimeout(searchDebounce);
     searchDebounce = setTimeout(() => {
-      fetch('https://geo.api.gouv.fr/communes?nom=' + encodeURIComponent(q) + '&fields=nom,code,codesPostaux,departement,population,centre&boost=population&limit=15', { signal: AbortSignal.timeout(4000) })
+      fetch('https://geo.api.gouv.fr/communes?nom=' + encodeURIComponent(q) + '&fields=nom,code,codesPostaux,departement,population,centre&boost=population&limit=20', { signal: AbortSignal.timeout(4000) })
         .then(r => r.json())
         .then(apiCities => {
-          const localCodes = new Set(CITIES.map(c => c.id));
-          const remote = apiCities.filter(ac => !localCodes.has(ac.code));
-          renderSearchResults(results, input, localMatches, remote);
+          const knownCodes = new Set([...CITIES.map(c => c.id), ...cachedMatches.map(c => c.code)]);
+          const remote = apiCities.filter(ac => !knownCodes.has(ac.code));
+          renderSearchResults(results, input, localMatches, remote, cachedMatches);
         }).catch(() => { });
     }, 250);
   });
   document.addEventListener('click', e => { if (!e.target.closest('.search-container')) results.classList.remove('active'); });
 }
 
-function renderSearchResults(container, input, localMatches, remoteCities) {
+function renderSearchResults(container, input, localMatches, remoteCities, cachedMatches) {
   container.innerHTML = '';
+
+  // Local matches (from top cities / already loaded)
   localMatches.forEach(city => {
     const item = document.createElement('div');
     item.className = 'search-result-item';
@@ -505,7 +471,46 @@ function renderSearchResults(container, input, localMatches, remoteCities) {
     });
     container.appendChild(item);
   });
-  if (localMatches.length > 0 && remoteCities.length > 0) {
+
+  // Cached matches (from loaded departments, with results)
+  if (cachedMatches && cachedMatches.length > 0) {
+    if (localMatches.length > 0) {
+      const sep = document.createElement('div');
+      sep.style.cssText = 'padding:4px 1rem;font-size:0.68rem;color:var(--text2);background:var(--surface2);font-weight:600;letter-spacing:0.5px;text-transform:uppercase';
+      sep.textContent = 'Résultats chargés';
+      container.appendChild(sep);
+    }
+    cachedMatches.forEach(cm => {
+      const item = document.createElement('div');
+      item.className = 'search-result-item';
+      const hasData = !!RESULTS_DB[cm.code];
+      const results = RESULTS_DB[cm.code];
+      let preview = '';
+      if (results && results.candidats) {
+        const top = results.candidats.filter(c => c.score).slice(0, 2);
+        preview = top.map(c => c.parti + ' ' + c.score + '%').join(' / ');
+      }
+      item.innerHTML = '<span class="city-n">' + cm.nom + '</span> <span class="city-dept">— ' + cm.dept + '</span>' +
+        (preview ? '<div style="font-size:0.7rem;color:#22C55E;margin-top:2px">' + preview + '</div>' :
+        (hasData ? '<div style="font-size:0.65rem;color:#22C55E;margin-top:2px">Résultats disponibles</div>' : ''));
+      item.addEventListener('click', async () => {
+        container.classList.remove('active');
+        input.value = cm.nom;
+        // Build a fake API city object
+        const deptCode = getDeptCode(cm.code);
+        const deptInfo = DEPT_CACHE[deptCode];
+        const apiCity = {
+          code: cm.code, nom: cm.nom, population: cm.inscrits || 0,
+          departement: { nom: deptInfo ? deptInfo.nom : '' }
+        };
+        await showRemoteCityDetail(apiCity);
+      });
+      container.appendChild(item);
+    });
+  }
+
+  // Remote matches (from geo API, not yet loaded)
+  if (remoteCities.length > 0) {
     const sep = document.createElement('div');
     sep.style.cssText = 'padding:4px 1rem;font-size:0.68rem;color:var(--text2);background:var(--surface2);font-weight:600;letter-spacing:0.5px;text-transform:uppercase';
     sep.textContent = 'Autres communes';
@@ -516,10 +521,8 @@ function renderSearchResults(container, input, localMatches, remoteCities) {
     item.className = 'search-result-item';
     const dn = ac.departement ? ac.departement.nom : '';
     const ps = ac.population ? (ac.population > 1000 ? Math.round(ac.population / 1000) + 'k hab.' : ac.population + ' hab.') : '';
-    // Check if we have results for this city
-    const hasData = !!RESULTS_DB[ac.code];
-    const dataHint = hasData ? '<div style="font-size:0.65rem;color:#22C55E;margin-top:2px">Résultats disponibles</div>' : '';
-    item.innerHTML = '<span class="city-n">' + ac.nom + '</span> <span class="city-dept">— ' + dn + (ps ? ' · ' + ps : '') + '</span>' + dataHint;
+    item.innerHTML = '<span class="city-n">' + ac.nom + '</span> <span class="city-dept">— ' + dn + (ps ? ' · ' + ps : '') + '</span>' +
+      '<div style="font-size:0.65rem;color:var(--accent);margin-top:2px">Cliquer pour charger les résultats</div>';
     item.addEventListener('click', () => {
       showRemoteCityDetail(ac);
       container.classList.remove('active');
@@ -527,7 +530,8 @@ function renderSearchResults(container, input, localMatches, remoteCities) {
     });
     container.appendChild(item);
   });
-  if (!localMatches.length && !remoteCities.length) {
+
+  if (!localMatches.length && !remoteCities.length && (!cachedMatches || !cachedMatches.length)) {
     const n = document.createElement('div');
     n.className = 'search-result-item';
     n.style.color = 'var(--text2)';
@@ -537,7 +541,7 @@ function renderSearchResults(container, input, localMatches, remoteCities) {
   container.classList.add('active');
 }
 
-// ===== AUTO REFRESH (real data fetch, not page reload) =====
+// ===== AUTO REFRESH =====
 function setupAutoRefresh() {
   if (IS_DEFINITIF) {
     document.getElementById('refreshInfo').innerHTML = '<span style="color:var(--text2)">Résultats définitifs</span>';
@@ -546,12 +550,10 @@ function setupAutoRefresh() {
     return;
   }
 
-  // Fetch live data every REFRESH_INTERVAL
   setInterval(async () => {
     refreshCountdown = REFRESH_INTERVAL / 1000;
     const updated = await applyLiveResults();
     if (updated) {
-      // Flash the badge to indicate update
       const badge = document.getElementById('liveBadge');
       badge.style.background = '#22C55E';
       badge.textContent = 'Données mises à jour';
@@ -562,7 +564,6 @@ function setupAutoRefresh() {
     }
   }, REFRESH_INTERVAL);
 
-  // Countdown timer
   setInterval(() => {
     if (refreshCountdown > 0) refreshCountdown--;
     const m = Math.floor(refreshCountdown / 60), s = refreshCountdown % 60;
