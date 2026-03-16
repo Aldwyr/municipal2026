@@ -1,11 +1,12 @@
 // ===== STATE =====
 let CITIES = [];
-let MAP, CLUSTER_GROUP;
+let MAP;
 let currentFilter = 'all';
 let activeLegendParty = null;
 let openDetailCityId = null;
 let refreshCountdown = REFRESH_INTERVAL / 1000;
 let citiesLoaded = false;
+let lastUpdateTimestamp = null;
 
 // ===== UTILS =====
 function computeTags(r) {
@@ -72,10 +73,97 @@ function cityMatchesLegendParty(city, partyKey) {
   return partiMatch || bMatch;
 }
 
+// ===== LIVE DATA FETCH =====
+async function fetchLiveResults() {
+  try {
+    const cacheBuster = '?t=' + Date.now();
+    const resp = await fetch('data/results-live.json' + cacheBuster, {
+      signal: AbortSignal.timeout(8000),
+      cache: 'no-store'
+    });
+    if (!resp.ok) return null;
+    const data = await resp.json();
+    return data;
+  } catch (e) {
+    console.log('Fetch live results failed:', e);
+    return null;
+  }
+}
+
+async function applyLiveResults() {
+  const data = await fetchLiveResults();
+  if (!data || !data.results) return false;
+
+  // Check if data is newer
+  if (lastUpdateTimestamp && data.lastUpdate === lastUpdateTimestamp) return false;
+  lastUpdateTimestamp = data.lastUpdate;
+
+  // Update RESULTS_DB with live data
+  let changed = false;
+  Object.entries(data.results).forEach(([code, results]) => {
+    const existing = RESULTS_DB[code];
+    if (!existing || JSON.stringify(existing) !== JSON.stringify(results)) {
+      RESULTS_DB[code] = results;
+      changed = true;
+    }
+  });
+
+  if (changed) {
+    // Update existing CITIES with new results
+    CITIES.forEach((city, idx) => {
+      if (RESULTS_DB[city.id]) {
+        const geo = GEO_FALLBACK[city.id];
+        if (geo) {
+          const fakeApi = {
+            code: city.id, nom: city.name, population: city.population,
+            centre: { coordinates: [city.lng, city.lat] },
+            departement: { nom: city.dept }
+          };
+          CITIES[idx] = buildCity(fakeApi, RESULTS_DB[city.id]);
+        }
+      }
+    });
+
+    // Add any new cities from RESULTS_DB that aren't in CITIES yet
+    Object.entries(RESULTS_DB).forEach(([code, results]) => {
+      if (!CITIES.find(c => c.id === code)) {
+        const geo = GEO_FALLBACK[code];
+        if (geo) {
+          const fakeApi = {
+            code, nom: geo.nom, population: geo.pop,
+            centre: { coordinates: [geo.lng, geo.lat] },
+            departement: { nom: geo.dept }
+          };
+          CITIES.push(buildCity(fakeApi, results));
+        }
+      }
+    });
+
+    // Refresh display
+    displayFiltered(currentFilter);
+
+    // Update choropleth colors
+    if (typeof refreshChoroplethColors === 'function') refreshChoroplethColors();
+
+    // Update timestamp
+    const ts = new Date(data.lastUpdate);
+    const formatted = ts.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
+      + ', ' + ts.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+    const el = document.getElementById('lastUpdate');
+    if (el) el.textContent = formatted;
+
+    console.log('Données mises à jour:', data.lastUpdate, '— ' + Object.keys(data.results).length + ' communes');
+  }
+  return changed;
+}
+
 // ===== LOAD CITIES (once at startup) =====
 async function loadCities() {
   const grid = document.getElementById('citiesGrid');
   grid.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--text2)">Chargement...</div>';
+
+  // Try to load live data first
+  await applyLiveResults();
 
   // Start with all RESULTS_DB cities (guaranteed data)
   CITIES = Object.entries(RESULTS_DB).map(([code, results]) => {
@@ -94,17 +182,14 @@ async function loadCities() {
     const resp = await fetch('https://geo.api.gouv.fr/communes?fields=nom,code,departement,population,centre&boost=population&limit=80', { signal: AbortSignal.timeout(6000) });
     const apiCities = await resp.json();
 
-    // Merge: update existing cities with API data, add new ones
     const existingCodes = new Set(CITIES.map(c => c.id));
     apiCities.forEach(ac => {
       if (existingCodes.has(ac.code)) {
-        // Update existing city with better API geo data
         const idx = CITIES.findIndex(c => c.id === ac.code);
         if (idx !== -1) {
           CITIES[idx] = buildCity(ac, RESULTS_DB[ac.code] || null);
         }
       } else {
-        // Add new city from API (no results yet)
         CITIES.push(buildCity(ac, null));
       }
     });
@@ -128,7 +213,6 @@ function displayFiltered(filter) {
 
   filtered = filtered.slice(0, 20);
   renderTiles(filtered);
-  updateMap(filtered);
 }
 
 function applyFilter(cities, filter) {
@@ -154,7 +238,7 @@ function applyFilter(cities, filter) {
       list = list.filter(c => hasResults(c) && getLeadScore(c, 'rn') > 0);
       list.sort((a, b) => getLeadScore(b, 'rn') - getLeadScore(a, 'rn'));
       break;
-    default: // 'all' — ONLY cities with results, sorted by population
+    default:
       list = list.filter(c => hasResults(c));
       list.sort((a, b) => (b.population || 0) - (a.population || 0));
       break;
@@ -162,61 +246,20 @@ function applyFilter(cities, filter) {
   return list;
 }
 
-// ===== MAP =====
+// ===== MAP (choropleth only — no markers) =====
 function initMap() {
   MAP = L.map('map', { center: [46.6, 2.5], zoom: 6, scrollWheelZoom: true, zoomControl: false });
   L.control.zoom({ position: 'bottomright' }).addTo(MAP);
   L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
     attribution: '&copy; OSM &copy; CARTO', maxZoom: 19
   }).addTo(MAP);
-  CLUSTER_GROUP = L.markerClusterGroup({
-    maxClusterRadius: 45, spiderfyOnMaxZoom: true,
-    showCoverageOnHover: false, zoomToBoundsOnClick: true,
-    iconCreateFunction: function (cluster) {
-      const n = cluster.getChildCount();
-      const sz = n >= 10 ? 'large' : n >= 5 ? 'medium' : 'small';
-      return L.divIcon({ html: '<div>' + n + '</div>', className: 'marker-cluster marker-cluster-' + sz, iconSize: L.point(40, 40) });
-    }
-  });
-  MAP.addLayer(CLUSTER_GROUP);
 }
 
-function updateMap(cities) {
-  CLUSTER_GROUP.clearLayers();
-  cities.forEach(city => {
-    const c = BORD_COLORS[city.bord] || '#90A4AE';
-    const r = Math.max(8, Math.min(16, (city.candidats ? city.candidats.length : 1) * 3 + 4));
-    const mk = L.circleMarker([city.lat, city.lng], {
-      radius: r, fillColor: c, fillOpacity: 0.85, color: '#fff', weight: 2
-    });
-    mk.bindPopup(buildPopupHTML(city), { maxWidth: 320 });
-    mk.on('mouseover', function () { this.setStyle({ weight: 3, fillOpacity: 1 }); });
-    mk.on('mouseout', function () { this.setStyle({ weight: 2, fillOpacity: 0.85 }); });
-    city._marker = mk;
-    CLUSTER_GROUP.addLayer(mk);
-  });
-}
-
-function buildPopupHTML(city) {
-  const sl = city.status === 'elu' ? 'ÉLU' : city.status === '2t' ? '2e TOUR' : 'EN COURS';
-  const sc = city.status === 'elu' ? '#22C55E' : city.status === '2t' ? '#F59E0B' : '#94A3B8';
-  let h = '<div style="min-width:220px;font-family:inherit">';
-  h += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">';
-  h += '<strong style="font-size:1rem">' + city.name + '</strong>';
-  h += '<span style="font-size:0.6rem;background:' + sc + '33;color:' + sc + ';padding:2px 6px;border-radius:999px;font-weight:700">' + sl + '</span></div>';
-  h += '<div style="font-size:0.7rem;color:#94A3B8">' + city.pop + ' — ' + city.dept + '</div>';
-  if (city.candidats && city.candidats.length) {
-    h += '<hr style="border-color:#475569;margin:6px 0">';
-    city.candidats.forEach(cd => {
-      const s = cd.score !== null ? cd.score + ' %' : '—';
-      h += '<div style="display:flex;justify-content:space-between;margin:3px 0;font-size:0.78rem">';
-      h += '<span>' + cd.nom + ' <span style="color:#94A3B8;font-size:0.68rem">(' + cd.parti + ')</span></span>';
-      h += '<strong style="color:' + cd.color + '">' + s + '</strong></div>';
-    });
-  }
-  h += '<hr style="border-color:#475569;margin:6px 0">';
-  h += '<button onclick="showDetailPanel(\'' + city.id + '\')" style="width:100%;padding:6px;background:#38BDF8;color:#0F172A;border:none;border-radius:8px;font-weight:700;font-size:0.78rem;cursor:pointer">Voir les détails</button></div>';
-  return h;
+// Zoom to a city on the map (called from tiles / search / commune click)
+function zoomToCity(cityId) {
+  const city = CITIES.find(c => c.id === cityId);
+  if (!city || !MAP) return;
+  MAP.setView([city.lat, city.lng], Math.max(MAP.getZoom(), 11), { animate: true });
 }
 
 // ===== TILES =====
@@ -290,10 +333,8 @@ function toggleTileDetail(cityId) {
   detailRow.innerHTML = buildDetailHTML(city, true);
   tile.after(detailRow);
 
-  if (MAP && city._marker) {
-    MAP.setView([city.lat, city.lng], Math.max(MAP.getZoom(), 8), { animate: true });
-    city._marker.openPopup();
-  }
+  // Zoom to city on choropleth map
+  zoomToCity(cityId);
 
   detailRow.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
@@ -329,13 +370,17 @@ function showRemoteCityDetail(apiCity) {
     const city = buildCity(apiCity, RESULTS_DB[apiCity.code]);
     if (!CITIES.find(c => c.id === city.id)) CITIES.push(city);
     showDetailPanel(city.id);
+    // Zoom to commune on map
+    if (apiCity.centre && MAP) {
+      MAP.setView([apiCity.centre.coordinates[1], apiCity.centre.coordinates[0]], Math.max(MAP.getZoom(), 11), { animate: true });
+    }
     return;
   }
   const city = buildCity(apiCity, null);
   if (!CITIES.find(c => c.id === city.id)) CITIES.push(city);
   showDetailPanel(city.id);
   if (apiCity.centre && MAP) {
-    MAP.setView([apiCity.centre.coordinates[1], apiCity.centre.coordinates[0]], Math.max(MAP.getZoom(), 9), { animate: true });
+    MAP.setView([apiCity.centre.coordinates[1], apiCity.centre.coordinates[0]], Math.max(MAP.getZoom(), 11), { animate: true });
   }
 }
 
@@ -452,7 +497,12 @@ function renderSearchResults(container, input, localMatches, remoteCities) {
     const top = (city.candidats || []).filter(c => c.score !== null).slice(0, 2);
     const preview = top.map(c => c.parti + ' ' + c.score + '%').join(' / ');
     item.innerHTML = '<span class="city-n">' + city.name + '</span> <span class="city-dept">— ' + city.dept + '</span>' + (preview ? '<div style="font-size:0.7rem;color:var(--accent);margin-top:2px">' + preview + '</div>' : '');
-    item.addEventListener('click', () => { showDetailPanel(city.id); container.classList.remove('active'); input.value = city.name; });
+    item.addEventListener('click', () => {
+      showDetailPanel(city.id);
+      zoomToCity(city.id);
+      container.classList.remove('active');
+      input.value = city.name;
+    });
     container.appendChild(item);
   });
   if (localMatches.length > 0 && remoteCities.length > 0) {
@@ -466,8 +516,15 @@ function renderSearchResults(container, input, localMatches, remoteCities) {
     item.className = 'search-result-item';
     const dn = ac.departement ? ac.departement.nom : '';
     const ps = ac.population ? (ac.population > 1000 ? Math.round(ac.population / 1000) + 'k hab.' : ac.population + ' hab.') : '';
-    item.innerHTML = '<span class="city-n">' + ac.nom + '</span> <span class="city-dept">— ' + dn + (ps ? ' · ' + ps : '') + '</span>';
-    item.addEventListener('click', () => { showRemoteCityDetail(ac); container.classList.remove('active'); input.value = ac.nom; });
+    // Check if we have results for this city
+    const hasData = !!RESULTS_DB[ac.code];
+    const dataHint = hasData ? '<div style="font-size:0.65rem;color:#22C55E;margin-top:2px">Résultats disponibles</div>' : '';
+    item.innerHTML = '<span class="city-n">' + ac.nom + '</span> <span class="city-dept">— ' + dn + (ps ? ' · ' + ps : '') + '</span>' + dataHint;
+    item.addEventListener('click', () => {
+      showRemoteCityDetail(ac);
+      container.classList.remove('active');
+      input.value = ac.nom;
+    });
     container.appendChild(item);
   });
   if (!localMatches.length && !remoteCities.length) {
@@ -480,7 +537,7 @@ function renderSearchResults(container, input, localMatches, remoteCities) {
   container.classList.add('active');
 }
 
-// ===== AUTO REFRESH =====
+// ===== AUTO REFRESH (real data fetch, not page reload) =====
 function setupAutoRefresh() {
   if (IS_DEFINITIF) {
     document.getElementById('refreshInfo').innerHTML = '<span style="color:var(--text2)">Résultats définitifs</span>';
@@ -488,7 +545,24 @@ function setupAutoRefresh() {
     document.getElementById('liveBadge').style.background = '#22C55E';
     return;
   }
-  setInterval(() => { refreshCountdown = REFRESH_INTERVAL / 1000; location.reload(); }, REFRESH_INTERVAL);
+
+  // Fetch live data every REFRESH_INTERVAL
+  setInterval(async () => {
+    refreshCountdown = REFRESH_INTERVAL / 1000;
+    const updated = await applyLiveResults();
+    if (updated) {
+      // Flash the badge to indicate update
+      const badge = document.getElementById('liveBadge');
+      badge.style.background = '#22C55E';
+      badge.textContent = 'Données mises à jour';
+      setTimeout(() => {
+        badge.style.background = '';
+        badge.textContent = '1er Tour — En direct';
+      }, 3000);
+    }
+  }, REFRESH_INTERVAL);
+
+  // Countdown timer
   setInterval(() => {
     if (refreshCountdown > 0) refreshCountdown--;
     const m = Math.floor(refreshCountdown / 60), s = refreshCountdown % 60;
