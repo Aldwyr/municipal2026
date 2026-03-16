@@ -217,5 +217,6 @@ const GEO_FALLBACK = {
   "38185": { nom: "Grenoble", pop: 158198, lat: 45.1885, lng: 5.7245, dept: "Isère" },
   "66136": { nom: "Perpignan", pop: 120605, lat: 42.6886, lng: 2.8948, dept: "Pyrénées-Orientales" },
   "62427": { nom: "Hénin-Beaumont", pop: 26042, lat: 50.4226, lng: 2.9503, dept: "Pas-de-Calais" },
-  "59512": { nom: "Roubaix", pop: 98828, lat: 50.6942, lng: 3.1746, dept: "Nord" }
+  "59512": { nom: "Roubaix", pop: 98828, lat: 50.6942, lng: 3.1746, dept: "Nord" },
+  "42218": { nom: "Saint-Étienne", pop: 174082, lat: 45.4397, lng: 4.3872, dept: "Loire" }
 };
