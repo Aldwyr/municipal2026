@@ -5,6 +5,7 @@ let deptLayer = null;
 let communeLayers = {}; // keyed by dept code
 let loadedDepts = new Set();
 let communeLayerGroup = L.layerGroup();
+let activeDeptCode = null; // currently selected department
 
 const DEPT_GEOJSON_URL = 'https://raw.githubusercontent.com/gregoiredavid/france-geojson/master/departements-version-simplifiee.geojson';
 
@@ -23,6 +24,7 @@ function getDeptPoliticalData() {
         if (BORD_FAMILIES.gauche.includes(lead.bord)) family = 'gauche';
         else if (BORD_FAMILIES.droite.includes(lead.bord)) family = 'droite';
         else if (BORD_FAMILIES.rn.includes(lead.bord)) family = 'rn';
+        else if (BORD_FAMILIES.divers.includes(lead.bord)) family = 'divers';
         deptData[dept].bords[family] = (deptData[dept].bords[family] || 0) + 1;
       }
     }
@@ -45,6 +47,7 @@ function getDeptColor(deptCode, deptPoliticalData) {
     rn: 'rgba(92,107,192,0.35)',
     eco: 'rgba(76,175,80,0.35)',
     centre: 'rgba(255,152,0,0.35)',
+    divers: 'rgba(144,164,174,0.2)',
     indecis: 'rgba(144,164,174,0.2)'
   };
   return colors[maxBord] || colors.indecis;
@@ -68,6 +71,7 @@ function getCommuneColor(communeCode) {
     if (lead.bord === 'Droite souverainiste') return 'rgba(0,150,136,0.5)';
     return 'rgba(25,118,210,0.5)';
   }
+  if (BORD_FAMILIES.divers.includes(lead.bord)) return 'rgba(144,164,174,0.35)';
   return 'rgba(144,164,174,0.3)';
 }
 
@@ -89,8 +93,7 @@ async function loadDepartments() {
       },
       onEachFeature: function (feature, layer) {
         layer.on('click', function () {
-          loadCommunesForDept(feature.properties.code);
-          MAP.fitBounds(layer.getBounds(), { maxZoom: 10, padding: [20, 20] });
+          selectDepartment(feature.properties.code, layer);
         });
         layer.on('mouseover', function () {
           this.setStyle({ weight: 2, color: 'rgba(56,189,248,0.6)' });
@@ -172,7 +175,7 @@ async function loadCommunesForDept(deptCode) {
     });
 
     communeLayers[deptCode] = layer;
-    communeLayerGroup.addLayer(layer);
+    // Don't auto-add to group; selectDepartment controls what's shown
 
   } catch (e) {
     console.log('Erreur chargement communes dept ' + deptCode + ':', e);
@@ -194,7 +197,7 @@ async function handleCommuneClick(code, nom, population) {
     const pop = population || 0;
     const popStr = pop >= 1e6 ? (pop / 1e6).toFixed(1).replace('.0', '') + ' M hab.'
       : pop >= 1000 ? Math.round(pop / 1000) + ' k hab.' : pop + ' hab.';
-    const miUrl = 'https://www.resultats-elections.interieur.gouv.fr/municipales2026/' + deptCode.padStart(3, '0') + '/' + code + '/';
+    const miUrl = buildMinistryUrl(code);
 
     city = {
       id: code, name: nom, pop: popStr, dept: deptName,
@@ -212,43 +215,151 @@ async function handleCommuneClick(code, nom, population) {
   }
 
   showDetailPanel(city.id);
+  // Highlight the commune on the map
+  highlightCommune(code);
+  // Zoom to the commune — find its bounds from the GeoJSON layer
+  if (MAP) {
+    let found = false;
+    const searchLg = activeDomTom ? domtomGeoLayers[activeDomTom] :
+      (activeDeptCode ? communeLayers[activeDeptCode] : null);
+    if (searchLg) {
+      searchLg.eachLayer(function (l) {
+        if (!found && l.feature && l.feature.properties.code === code) {
+          MAP.fitBounds(l.getBounds(), { maxZoom: 13, padding: [40, 40], animate: true });
+          found = true;
+        }
+      });
+    }
+  }
+}
+
+// ===== DESELECT DEPARTMENT =====
+function deselectDepartment() {
+  deselectCommune();
+  activeDeptCode = null;
+  // Remove all commune layers from the group
+  communeLayerGroup.clearLayers();
+  if (MAP.hasLayer(communeLayerGroup)) MAP.removeLayer(communeLayerGroup);
+  // Restore all dept styles
+  const deptPoliticalData = getDeptPoliticalData();
+  deptLayer.eachLayer(function (l) {
+    const code = l.feature.properties.code;
+    l.setStyle({ fillColor: getDeptColor(code, deptPoliticalData), fillOpacity: 1, weight: 1, color: 'rgba(71,85,105,0.4)' });
+  });
+  MAP.flyTo(FRANCE_VIEW.center, FRANCE_VIEW.zoom, { duration: 0.8 });
+  hideMapCloseBtn();
+  // Close any open detail
+  closeDetailPanel();
+  if (openDetailCityId) {
+    const existing = document.getElementById('tileDetail');
+    if (existing) existing.remove();
+    document.querySelectorAll('.city-tile.active').forEach(t => t.classList.remove('active'));
+    openDetailCityId = null;
+  }
+  // Reset tiles to national view
+  displayFiltered(currentFilter);
+}
+
+// ===== SELECT DEPARTMENT =====
+async function selectDepartment(deptCode, layer) {
+  // If clicking the same dept, deselect
+  if (activeDeptCode === deptCode) {
+    deselectDepartment();
+    return;
+  }
+
+  // Clear previous commune layers before loading new dept
+  communeLayerGroup.clearLayers();
+
+  activeDeptCode = deptCode;
+  closeDetailPanel();
+
+  // Dim all departments, highlight selected
+  deptLayer.eachLayer(function (l) {
+    const code = l.feature.properties.code;
+    if (code === deptCode) {
+      l.setStyle({ fillOpacity: 0, weight: 2, color: 'rgba(56,189,248,0.6)' });
+    } else {
+      l.setStyle({ fillOpacity: 0.3, weight: 1, color: 'rgba(71,85,105,0.2)' });
+    }
+  });
+
+  // Load communes for this dept only and show on map
+  await loadCommunesForDept(deptCode);
+  // Re-add only the active dept's commune layer to the group
+  communeLayerGroup.clearLayers();
+  if (communeLayers[deptCode]) communeLayerGroup.addLayer(communeLayers[deptCode]);
+  if (!MAP.hasLayer(communeLayerGroup)) MAP.addLayer(communeLayerGroup);
+
+  // Zoom to dept
+  if (layer) MAP.fitBounds(layer.getBounds(), { maxZoom: 11, padding: [20, 20] });
+  showMapCloseBtn();
+
+  // Show dept communes in the tiles
+  displayDeptResults(deptCode);
+}
+
+// Display only communes from a specific department in the tiles grid
+function displayDeptResults(deptCode) {
+  const deptInfo = DEPT_CACHE[deptCode];
+  if (!deptInfo) return;
+
+  // Build city objects for all communes in this dept with results
+  let deptCities = deptInfo.communes
+    .filter(c => c.candidats && c.candidats.length > 0)
+    .map(c => {
+      let city = CITIES.find(x => x.id === c.code);
+      if (!city) {
+        city = buildCity({
+          code: c.code, nom: c.nom, population: c.inscrits || 0,
+          departement: { nom: deptInfo.nom }
+        }, RESULTS_DB[c.code] || null);
+        CITIES.push(city);
+      }
+      return city;
+    });
+
+  // Apply current filter and legend
+  deptCities = applyFilter(deptCities, currentFilter);
+  if (activeLegendParty) {
+    deptCities = deptCities.filter(c => cityMatchesLegendParty(c, activeLegendParty));
+  }
+
+  renderTiles(deptCities.slice(0, 50));
 }
 
 // ===== ZOOM HANDLER =====
 function onMapZoom() {
   const zoom = MAP.getZoom();
 
-  if (zoom >= 9) {
+  if (zoom >= 9 && activeDeptCode) {
+    // Show commune layer when zoomed in with active dept
     if (deptLayer && MAP.hasLayer(deptLayer)) {
-      deptLayer.setStyle({ fillOpacity: 0, weight: 1, color: 'rgba(71,85,105,0.2)' });
-    }
-    if (!MAP.hasLayer(communeLayerGroup)) MAP.addLayer(communeLayerGroup);
-    loadVisibleDeptCommunes();
-  } else {
-    if (deptLayer && MAP.hasLayer(deptLayer)) {
-      const deptPoliticalData = getDeptPoliticalData();
-      deptLayer.eachLayer(function (layer) {
-        const code = layer.feature.properties.code;
-        layer.setStyle({
-          fillColor: getDeptColor(code, deptPoliticalData),
-          fillOpacity: 1,
-          weight: 1,
-          color: 'rgba(71,85,105,0.4)'
-        });
+      deptLayer.eachLayer(function (l) {
+        if (l.feature.properties.code === activeDeptCode) {
+          l.setStyle({ fillOpacity: 0, weight: 2, color: 'rgba(56,189,248,0.6)' });
+        }
       });
     }
-    if (MAP.hasLayer(communeLayerGroup)) MAP.removeLayer(communeLayerGroup);
-  }
-}
-
-function loadVisibleDeptCommunes() {
-  if (!deptLayer) return;
-  const bounds = MAP.getBounds();
-  deptLayer.eachLayer(function (layer) {
-    if (bounds.intersects(layer.getBounds())) {
-      loadCommunesForDept(layer.feature.properties.code);
+    if (!MAP.hasLayer(communeLayerGroup)) MAP.addLayer(communeLayerGroup);
+  } else if (!activeDeptCode) {
+    // No active dept: restore normal dept view
+    if (zoom < 9) {
+      if (deptLayer && MAP.hasLayer(deptLayer)) {
+        const deptPoliticalData = getDeptPoliticalData();
+        deptLayer.eachLayer(function (layer) {
+          const code = layer.feature.properties.code;
+          layer.setStyle({
+            fillColor: getDeptColor(code, deptPoliticalData),
+            fillOpacity: 1,
+            weight: 1,
+            color: 'rgba(71,85,105,0.4)'
+          });
+        });
+      }
+      if (MAP.hasLayer(communeLayerGroup)) MAP.removeLayer(communeLayerGroup);
     }
-  });
+  }
 }
 
 // ===== REFRESH COLORS =====

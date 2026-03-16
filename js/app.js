@@ -7,6 +7,8 @@ let openDetailCityId = null;
 let refreshCountdown = REFRESH_INTERVAL / 1000;
 let citiesLoaded = false;
 let lastUpdateTimestamp = null;
+const FRANCE_VIEW = { center: [46.6, 2.5], zoom: 6 };
+let activeCommuneCode = null; // currently highlighted commune on map
 
 // ===== UTILS =====
 function computeTags(r) {
@@ -37,8 +39,7 @@ function buildCity(apiCity, results) {
     : pop >= 1000 ? Math.round(pop / 1000) + ' k hab.' : pop + ' hab.';
   const lat = apiCity.centre ? apiCity.centre.coordinates[1] : (apiCity.lat || 46.6);
   const lng = apiCity.centre ? apiCity.centre.coordinates[0] : (apiCity.lng || 2.5);
-  const deptCode = getDeptCode(code);
-  const miUrl = 'https://www.resultats-elections.interieur.gouv.fr/municipales2026/' + deptCode.padStart(3, '0') + '/' + code + '/';
+  const miUrl = buildMinistryUrl(code);
   const base = {
     id: code, name: apiCity.nom, pop: popStr, dept: deptName,
     lat, lng, code, population: pop,
@@ -168,6 +169,12 @@ async function loadCities() {
 
 // ===== DISPLAY =====
 function displayFiltered(filter) {
+  // If a department or DOM/TOM is active, filter within that context
+  if (activeDeptCode || activeDomTom) {
+    displayDeptResults(activeDeptCode || activeDomTom);
+    return;
+  }
+
   if (!citiesLoaded) return;
 
   let filtered = applyFilter(CITIES, filter);
@@ -212,18 +219,131 @@ function applyFilter(cities, filter) {
 }
 
 // ===== MAP =====
+const FRANCE_BOUNDS = L.latLngBounds([[41.0, -5.5], [51.5, 10.0]]);
+let activeDomTom = null; // currently viewing DOM/TOM territory
+
 function initMap() {
-  MAP = L.map('map', { center: [46.6, 2.5], zoom: 6, scrollWheelZoom: true, zoomControl: false });
+  MAP = L.map('map', {
+    center: FRANCE_VIEW.center, zoom: FRANCE_VIEW.zoom,
+    scrollWheelZoom: true, zoomControl: false,
+    maxBounds: FRANCE_BOUNDS,
+    maxBoundsViscosity: 1.0,
+    minZoom: 5
+  });
   L.control.zoom({ position: 'bottomright' }).addTo(MAP);
   L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
     attribution: '&copy; OSM &copy; CARTO', maxZoom: 19
   }).addTo(MAP);
+
+  // Two-level dezoom: commune → department view, then department → national
+  MAP.on('zoomend', function () {
+    const zoom = MAP.getZoom();
+    // Level 1: If a commune is highlighted and we zoom out, deselect commune (back to dept view)
+    if (activeCommuneCode && zoom <= 9 && activeDeptCode) {
+      deselectCommune();
+      // Close any open detail
+      closeDetailPanel();
+      if (openDetailCityId) {
+        const existing = document.getElementById('tileDetail');
+        if (existing) existing.remove();
+        document.querySelectorAll('.city-tile.active').forEach(t => t.classList.remove('active'));
+        openDetailCityId = null;
+      }
+      return; // Stop here — don't also deselect department in the same event
+    }
+    // Level 2: If at department level (no commune selected) and zoom out, deselect department
+    if (activeDeptCode && !activeCommuneCode && zoom <= 7) {
+      deselectDepartment();
+    }
+  });
+}
+
+// ===== MAP CLOSE BUTTON (deselect dept / DOM/TOM) =====
+function showMapCloseBtn() {
+  let btn = document.getElementById('mapCloseBtn');
+  if (!btn) {
+    btn = document.createElement('button');
+    btn.id = 'mapCloseBtn';
+    btn.className = 'map-close-btn';
+    btn.innerHTML = '&times;';
+    btn.title = 'Retour à la vue nationale';
+    btn.addEventListener('click', function () {
+      if (activeDomTom) {
+        exitDomTomView();
+      } else if (activeCommuneCode && activeDeptCode) {
+        // Level 1: commune → back to department view
+        deselectCommune();
+        closeDetailPanel();
+        if (openDetailCityId) {
+          const existing = document.getElementById('tileDetail');
+          if (existing) existing.remove();
+          document.querySelectorAll('.city-tile.active').forEach(t => t.classList.remove('active'));
+          openDetailCityId = null;
+        }
+        MAP.flyToBounds(communeLayers[activeDeptCode].getBounds(), { maxZoom: 10, padding: [20, 20], duration: 0.6 });
+        // Keep close button visible for level 2
+      } else if (activeDeptCode) {
+        // Level 2: department → back to national
+        deselectDepartment();
+        hideMapCloseBtn();
+      }
+    });
+    document.querySelector('.col-map').appendChild(btn);
+  }
+  btn.style.display = 'flex';
+}
+
+function hideMapCloseBtn() {
+  const btn = document.getElementById('mapCloseBtn');
+  if (btn) btn.style.display = 'none';
 }
 
 function zoomToCity(cityId) {
   const city = CITIES.find(c => c.id === cityId);
   if (!city || !MAP) return;
-  MAP.setView([city.lat, city.lng], Math.max(MAP.getZoom(), 11), { animate: true });
+  // Don't zoom the main map if we're on a DOM/TOM view (commune is on a distant island)
+  if (activeDomTom) return;
+  // Highlight the commune on the map
+  highlightCommune(cityId);
+  // Moderate zoom: 10 instead of 11
+  MAP.setView([city.lat, city.lng], Math.max(MAP.getZoom(), 10), { animate: true });
+}
+
+// Highlight a specific commune on the choropleth map
+function highlightCommune(communeCode) {
+  deselectCommune();
+  activeCommuneCode = communeCode;
+  // Search in all loaded commune layers
+  const searchLayers = activeDeptCode ? [communeLayers[activeDeptCode]] :
+    activeDomTom ? [domtomGeoLayers[activeDomTom]] : Object.values(communeLayers);
+  searchLayers.forEach(lg => {
+    if (!lg) return;
+    lg.eachLayer(function (l) {
+      if (!l.feature) return;
+      if (l.feature.properties.code === communeCode) {
+        l.setStyle({ weight: 3, color: '#38BDF8', fillOpacity: 1 });
+        l.bringToFront();
+      } else {
+        l.setStyle({ fillOpacity: 0.35, weight: 0.5, color: 'rgba(71,85,105,0.3)' });
+      }
+    });
+  });
+}
+
+// Reset commune highlighting
+function deselectCommune() {
+  if (!activeCommuneCode) return;
+  activeCommuneCode = null;
+  const searchLayers = activeDeptCode ? [communeLayers[activeDeptCode]] :
+    activeDomTom ? [domtomGeoLayers[activeDomTom]] : Object.values(communeLayers);
+  searchLayers.forEach(lg => {
+    if (!lg) return;
+    lg.eachLayer(function (l) {
+      if (!l.feature) return;
+      const color = getCommuneColor(l.feature.properties.code);
+      l.setStyle({ fillColor: color || 'rgba(30,41,59,0.3)', fillOpacity: color ? 1 : 0.5, weight: 0.5, color: 'rgba(71,85,105,0.3)' });
+    });
+  });
 }
 
 // ===== TILES =====
@@ -273,10 +393,19 @@ function toggleTileDetail(cityId) {
 
   if (openDetailCityId === cityId) {
     openDetailCityId = null;
+    deselectCommune();
     const existing = document.getElementById('tileDetail');
     if (existing) existing.remove();
     const activeTile = document.querySelector('.city-tile.active');
     if (activeTile) activeTile.classList.remove('active');
+    // Zoom back to department level if a dept is active, else national
+    if (!activeDomTom) {
+      if (activeDeptCode && communeLayers[activeDeptCode]) {
+        MAP.flyToBounds(communeLayers[activeDeptCode].getBounds(), { maxZoom: 10, padding: [20, 20], duration: 0.6 });
+      } else if (MAP) {
+        MAP.flyTo(FRANCE_VIEW.center, FRANCE_VIEW.zoom, { duration: 0.8 });
+      }
+    }
     return;
   }
 
@@ -337,16 +466,15 @@ async function showRemoteCityDetail(apiCity) {
   if (!CITIES.find(c => c.id === city.id)) CITIES.push(city);
   showDetailPanel(city.id);
 
-  if (apiCity.centre && MAP) {
-    MAP.setView([apiCity.centre.coordinates[1], apiCity.centre.coordinates[0]], Math.max(MAP.getZoom(), 11), { animate: true });
+  if (apiCity.centre && MAP && !activeDomTom) {
+    MAP.setView([apiCity.centre.coordinates[1], apiCity.centre.coordinates[0]], Math.max(MAP.getZoom(), 10), { animate: true });
   }
 }
 
 // ===== BUILD DETAIL HTML =====
 function buildDetailHTML(city, isTile) {
   const maxScore = Math.max(...(city.candidats || []).map(c => c.score || 0), 1);
-  const deptCode = getDeptCode(city.code || '');
-  const miUrl = 'https://www.resultats-elections.interieur.gouv.fr/municipales2026/' + deptCode.padStart(3, '0') + '/' + (city.code || '') + '/';
+  const miUrl = buildMinistryUrl(city.code || '');
 
   const closeBtn = isTile
     ? '<button class="tile-detail-close" onclick="event.stopPropagation();toggleTileDetail(\'' + city.id + '\')">&times;</button>'
@@ -571,10 +699,170 @@ function setupAutoRefresh() {
   }, 1000);
 }
 
+// ===== DOM/TOM INSET MAPS =====
+const domtomMaps = {};
+const domtomGeoLayers = {}; // commune GeoJSON layers on main map per DOM/TOM dept
+let franceMiniMap = null; // mini-map showing France when viewing DOM/TOM
+
+function initDomTomInsets() {
+  document.querySelectorAll('.domtom-inset').forEach(el => {
+    const dept = el.dataset.dept;
+    const [lat, lng] = el.dataset.center.split(',').map(Number);
+    const zoom = parseInt(el.dataset.zoom);
+    const mapEl = el.querySelector('.domtom-map');
+
+    const miniMap = L.map(mapEl, {
+      center: [lat, lng], zoom: zoom,
+      zoomControl: false, attributionControl: false,
+      dragging: false, scrollWheelZoom: false,
+      doubleClickZoom: false, touchZoom: false,
+      keyboard: false, boxZoom: false
+    });
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { maxZoom: 19 }).addTo(miniMap);
+    const mainZoom = parseInt(el.dataset.mainZoom) || zoom;
+    domtomMaps[dept] = { map: miniMap, center: [lat, lng], zoom: zoom, mainZoom: mainZoom, el: el };
+
+    // Load dept data and add commune layer to mini-map
+    loadDeptResults(dept).then(() => {
+      fetch('https://geo.api.gouv.fr/departements/' + dept + '/communes?format=geojson&geometry=contour&fields=nom,code,population', { signal: AbortSignal.timeout(15000) })
+        .then(r => r.json())
+        .then(geojson => {
+          L.geoJSON(geojson, {
+            style: function(feature) {
+              const color = getCommuneColor(feature.properties.code);
+              return { fillColor: color || 'rgba(30,41,59,0.3)', fillOpacity: color ? 1 : 0.5, color: 'rgba(71,85,105,0.3)', weight: 0.5 };
+            }
+          }).addTo(miniMap);
+
+          // Pre-create commune layer for main map
+          domtomGeoLayers[dept] = L.geoJSON(geojson, {
+            style: function(feature) {
+              const color = getCommuneColor(feature.properties.code);
+              return { fillColor: color || 'rgba(30,41,59,0.3)', fillOpacity: color ? 1 : 0.5, color: 'rgba(71,85,105,0.3)', weight: 0.5 };
+            },
+            onEachFeature: function(feature, layer) {
+              const code = feature.properties.code;
+              let tooltip = '<strong>' + feature.properties.nom + '</strong>';
+              if (feature.properties.population) tooltip += '<br>' + feature.properties.population.toLocaleString('fr-FR') + ' hab.';
+              layer.bindTooltip(tooltip, { sticky: true, className: 'commune-tooltip' });
+              layer.on('click', function() {
+                handleCommuneClick(code, feature.properties.nom, feature.properties.population);
+              });
+            }
+          });
+        }).catch(() => {});
+    });
+
+    // Click handler: show territory on main map
+    el.addEventListener('click', () => selectDomTom(dept));
+  });
+}
+
+// Restore a single DOM/TOM inset to its original territory view
+function restoreDomTomInset(dept) {
+  const info = domtomMaps[dept];
+  if (!info) return;
+  info.el.classList.remove('domtom-active');
+  info.el.classList.remove('domtom-selected');
+  const label = info.el.querySelector('.domtom-label');
+  if (label && label.dataset.originalLabel) label.textContent = label.dataset.originalLabel;
+  info.map.setView(info.center, info.zoom);
+}
+
+// Show a DOM/TOM territory on the main map
+async function selectDomTom(dept) {
+  // If already viewing this DOM/TOM, deselect
+  if (activeDomTom === dept) {
+    exitDomTomView();
+    return;
+  }
+
+  // Restore ALL DOM/TOM insets first (in case switching)
+  Object.keys(domtomMaps).forEach(d => restoreDomTomInset(d));
+
+  // Deselect any active metro department first
+  if (activeDeptCode) deselectDepartment();
+  deselectCommune();
+
+  activeDomTom = dept;
+  const info = domtomMaps[dept];
+  if (!info) return;
+
+  // Remove maxBounds so we can pan to DOM/TOM
+  MAP.setMaxBounds(null);
+  MAP.setMinZoom(3);
+
+  // Show commune layer on main map
+  Object.values(domtomGeoLayers).forEach(l => { if (MAP.hasLayer(l)) MAP.removeLayer(l); });
+  if (domtomGeoLayers[dept]) domtomGeoLayers[dept].addTo(MAP);
+
+  // Fly to DOM/TOM territory (mainZoom = closer view for the big map)
+  MAP.flyTo(info.center, info.mainZoom, { duration: 1 });
+
+  // Hide dept layer to declutter
+  if (deptLayer && MAP.hasLayer(deptLayer)) MAP.removeLayer(deptLayer);
+
+  // Transform ONLY this inset into a France/Métropole mini-preview
+  const label = info.el.querySelector('.domtom-label');
+  if (label) {
+    if (!label.dataset.originalLabel) label.dataset.originalLabel = label.textContent;
+    label.textContent = 'Métropole';
+  }
+  info.el.classList.add('domtom-active');
+  info.el.classList.add('domtom-selected');
+  info.map.setView(FRANCE_VIEW.center, 4);
+
+  // Show close button on map
+  showMapCloseBtn();
+
+  // Show communes list in tiles (no preselection)
+  await loadDeptResults(dept);
+  closeDetailPanel();
+  if (openDetailCityId) {
+    const existing = document.getElementById('tileDetail');
+    if (existing) existing.remove();
+    document.querySelectorAll('.city-tile.active').forEach(t => t.classList.remove('active'));
+    openDetailCityId = null;
+  }
+  displayDeptResults(dept);
+}
+
+// Return main map to France view
+function exitDomTomView() {
+  if (!activeDomTom) return;
+
+  // Remove DOM/TOM commune layer from main map
+  Object.values(domtomGeoLayers).forEach(l => { if (MAP.hasLayer(l)) MAP.removeLayer(l); });
+
+  // Restore dept layer
+  if (deptLayer && !MAP.hasLayer(deptLayer)) deptLayer.addTo(MAP);
+
+  // Restore France bounds
+  MAP.setMaxBounds(FRANCE_BOUNDS);
+  MAP.setMinZoom(5);
+  MAP.flyTo(FRANCE_VIEW.center, FRANCE_VIEW.zoom, { duration: 0.8 });
+
+  // Restore ALL insets
+  Object.keys(domtomMaps).forEach(d => restoreDomTomInset(d));
+
+  deselectCommune();
+  activeDomTom = null;
+  hideMapCloseBtn();
+  closeDetailPanel();
+  if (openDetailCityId) {
+    const existing = document.getElementById('tileDetail');
+    if (existing) existing.remove();
+    document.querySelectorAll('.city-tile.active').forEach(t => t.classList.remove('active'));
+    openDetailCityId = null;
+  }
+  displayFiltered(currentFilter);
+}
+
 // ===== INIT =====
 document.addEventListener('DOMContentLoaded', function () {
   initMap();
   initChoropleth();
+  initDomTomInsets();
   loadCities();
   setupSearch();
   setupFilters();
