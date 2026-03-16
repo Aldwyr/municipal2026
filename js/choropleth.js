@@ -1,28 +1,23 @@
 // ===== CHOROPLETH MAP LAYER =====
-// V2: Department-level choropleth + commune-level on zoom — NO circle markers
+// Uses france-geojson for department contours, geo.api.gouv.fr for commune contours
 
 let deptLayer = null;
 let communeLayers = {}; // keyed by dept code
 let loadedDepts = new Set();
 let communeLayerGroup = L.layerGroup();
 
-// Map INSEE city codes to department codes
-function getDeptFromInsee(code) {
-  if (code.startsWith('97')) return code.substring(0, 3);
-  if (code.startsWith('2A') || code.startsWith('2B')) return code.substring(0, 2);
-  return code.substring(0, 2);
-}
+const DEPT_GEOJSON_URL = 'https://raw.githubusercontent.com/gregoiredavid/france-geojson/master/departements-version-simplifiee.geojson';
 
 // Aggregate results per department from RESULTS_DB
 function getDeptPoliticalData() {
   const deptData = {};
   Object.entries(RESULTS_DB).forEach(([code, results]) => {
-    const dept = getDeptFromInsee(code);
+    const dept = getDeptCode(code);
     if (!deptData[dept]) deptData[dept] = { cities: [], bords: {} };
     deptData[dept].cities.push({ code, ...results });
 
     if (results.candidats && results.candidats.length) {
-      const lead = results.candidats.find(c => c.score !== null);
+      const lead = results.candidats.find(c => c.score !== null && c.score !== undefined);
       if (lead) {
         let family = 'indecis';
         if (BORD_FAMILIES.gauche.includes(lead.bord)) family = 'gauche';
@@ -59,7 +54,7 @@ function getCommuneColor(communeCode) {
   const results = RESULTS_DB[communeCode];
   if (!results || !results.candidats || !results.candidats.length) return null;
 
-  const lead = results.candidats.find(c => c.score !== null);
+  const lead = results.candidats.find(c => c.score !== null && c.score !== undefined);
   if (!lead) return null;
 
   if (BORD_FAMILIES.rn.includes(lead.bord)) return 'rgba(92,107,192,0.5)';
@@ -79,26 +74,14 @@ function getCommuneColor(communeCode) {
 // ===== LOAD DEPARTMENTS =====
 async function loadDepartments() {
   try {
-    const resp = await fetch('https://geo.api.gouv.fr/departements?fields=nom,code,contour', {
-      signal: AbortSignal.timeout(10000)
-    });
-    const depts = await resp.json();
+    const resp = await fetch(DEPT_GEOJSON_URL, { signal: AbortSignal.timeout(15000) });
+    const geojson = await resp.json();
     const deptPoliticalData = getDeptPoliticalData();
-
-    const geojson = {
-      type: 'FeatureCollection',
-      features: depts.filter(d => d.contour).map(d => ({
-        type: 'Feature',
-        properties: { code: d.code, nom: d.nom },
-        geometry: d.contour
-      }))
-    };
 
     deptLayer = L.geoJSON(geojson, {
       style: function (feature) {
-        const fillColor = getDeptColor(feature.properties.code, deptPoliticalData);
         return {
-          fillColor: fillColor,
+          fillColor: getDeptColor(feature.properties.code, deptPoliticalData),
           fillOpacity: 1,
           color: 'rgba(71,85,105,0.4)',
           weight: 1
@@ -139,20 +122,15 @@ async function loadCommunesForDept(deptCode) {
   loadedDepts.add(deptCode);
 
   try {
-    const resp = await fetch(
-      'https://geo.api.gouv.fr/departements/' + deptCode + '/communes?fields=nom,code,population,contour',
-      { signal: AbortSignal.timeout(10000) }
-    );
-    const communes = await resp.json();
+    // Load both: GeoJSON contours from geo API + election results from our JSON
+    const [geoResp, _deptData] = await Promise.all([
+      fetch('https://geo.api.gouv.fr/departements/' + deptCode + '/communes?format=geojson&geometry=contour&fields=nom,code,population', {
+        signal: AbortSignal.timeout(15000)
+      }),
+      loadDeptResults(deptCode)
+    ]);
 
-    const geojson = {
-      type: 'FeatureCollection',
-      features: communes.filter(c => c.contour).map(c => ({
-        type: 'Feature',
-        properties: { code: c.code, nom: c.nom, population: c.population || 0 },
-        geometry: c.contour
-      }))
-    };
+    const geojson = await geoResp.json();
 
     const layer = L.geoJSON(geojson, {
       style: function (feature) {
@@ -172,7 +150,7 @@ async function loadCommunesForDept(deptCode) {
           tooltip += '<br>' + feature.properties.population.toLocaleString('fr-FR') + ' hab.';
         }
         if (results && results.candidats && results.candidats.length) {
-          const lead = results.candidats.find(c => c.score !== null);
+          const lead = results.candidats.find(c => c.score !== null && c.score !== undefined);
           if (lead) {
             tooltip += '<br><span style="color:' + lead.color + '">' + lead.nom + ' (' + lead.parti + ') — ' + lead.score + '%</span>';
           }
@@ -181,7 +159,6 @@ async function loadCommunesForDept(deptCode) {
         }
         layer.bindTooltip(tooltip, { sticky: true, className: 'commune-tooltip' });
 
-        // Click on commune → show detail panel
         layer.on('click', function () {
           handleCommuneClick(code, feature.properties.nom, feature.properties.population);
         });
@@ -204,21 +181,23 @@ async function loadCommunesForDept(deptCode) {
 }
 
 // ===== COMMUNE CLICK HANDLER =====
-function handleCommuneClick(code, nom, population) {
-  // Check if city already in CITIES
-  let city = CITIES.find(c => c.id === code);
+async function handleCommuneClick(code, nom, population) {
+  // Ensure results are loaded for this commune
+  await loadCommuneResults(code);
 
+  let city = CITIES.find(c => c.id === code);
   if (!city) {
-    // Build a minimal city object
-    const deptCode = code.substring(0, code.startsWith('97') ? 3 : 2);
     const results = RESULTS_DB[code] || null;
+    const deptCode = getDeptCode(code);
+    const deptInfo = DEPT_CACHE[deptCode];
+    const deptName = deptInfo ? deptInfo.nom : '';
     const pop = population || 0;
     const popStr = pop >= 1e6 ? (pop / 1e6).toFixed(1).replace('.0', '') + ' M hab.'
       : pop >= 1000 ? Math.round(pop / 1000) + ' k hab.' : pop + ' hab.';
     const miUrl = 'https://www.resultats-elections.interieur.gouv.fr/municipales2026/' + deptCode.padStart(3, '0') + '/' + code + '/';
 
     city = {
-      id: code, name: nom, pop: popStr, dept: '',
+      id: code, name: nom, pop: popStr, dept: deptName,
       lat: 0, lng: 0, code: code, population: pop,
       sources: [{ label: "Ministère de l'Intérieur", url: miUrl }],
       status: results ? results.status : 'inconnu',
@@ -226,7 +205,7 @@ function handleCommuneClick(code, nom, population) {
       participation: results ? results.participation : 0,
       candidats: results ? results.candidats : [],
       maireSortant: results ? results.maireSortant : null,
-      note: results ? results.note : 'Résultats non encore disponibles',
+      note: results ? results.note : null,
       tags: results ? computeTags(results) : []
     };
     CITIES.push(city);
@@ -272,28 +251,16 @@ function loadVisibleDeptCommunes() {
   });
 }
 
-// ===== REFRESH COLORS (called after live data update) =====
+// ===== REFRESH COLORS =====
 function refreshChoroplethColors() {
-  // Refresh department colors
   if (deptLayer) {
     const deptPoliticalData = getDeptPoliticalData();
     deptLayer.eachLayer(function (layer) {
       const code = layer.feature.properties.code;
-      layer.setStyle({
-        fillColor: getDeptColor(code, deptPoliticalData),
-      });
-      // Update tooltip
-      const data = deptPoliticalData[code];
-      let tooltip = '<strong>' + layer.feature.properties.nom + '</strong> (' + code + ')';
-      if (data && data.cities.length) {
-        tooltip += '<br>' + data.cities.length + ' ville(s) avec résultats';
-      }
-      layer.unbindTooltip();
-      layer.bindTooltip(tooltip, { sticky: true, className: 'dept-tooltip' });
+      layer.setStyle({ fillColor: getDeptColor(code, deptPoliticalData) });
     });
   }
 
-  // Refresh commune colors
   Object.values(communeLayers).forEach(layer => {
     layer.eachLayer(function (subLayer) {
       if (!subLayer.feature) return;
@@ -303,23 +270,6 @@ function refreshChoroplethColors() {
         fillColor: color || 'rgba(30,41,59,0.3)',
         fillOpacity: color ? 1 : 0.5
       });
-
-      // Update tooltip
-      const results = RESULTS_DB[code];
-      let tooltip = '<strong>' + subLayer.feature.properties.nom + '</strong>';
-      if (subLayer.feature.properties.population) {
-        tooltip += '<br>' + subLayer.feature.properties.population.toLocaleString('fr-FR') + ' hab.';
-      }
-      if (results && results.candidats && results.candidats.length) {
-        const lead = results.candidats.find(c => c.score !== null);
-        if (lead) {
-          tooltip += '<br><span style="color:' + lead.color + '">' + lead.nom + ' (' + lead.parti + ') — ' + lead.score + '%</span>';
-        }
-        const statusText = results.status === 'elu' ? 'Élu 1er tour' : results.status === '2t' ? '2e tour' : '';
-        if (statusText) tooltip += '<br><em>' + statusText + '</em>';
-      }
-      subLayer.unbindTooltip();
-      subLayer.bindTooltip(tooltip, { sticky: true, className: 'commune-tooltip' });
     });
   });
 }
